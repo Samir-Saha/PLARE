@@ -1,15 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, signOut, type Me, type Org } from "@/lib/api";
-import { Avatar, Button, Notice, Skeleton, ThemeToggle, Wordmark } from "./ui";
-import { IconBook, IconCalendar, IconInbox, IconLogout, IconTasks, IconUsers } from "./icons";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode, type SVGProps } from "react";
+import { api, ApiError, signOut, type Me, type Org, type SubmissionRow } from "@/lib/api";
+import { Avatar, Button, Notice, Skeleton, ThemeToggle, Wordmark, useLoad } from "./ui";
+import { IconBook, IconCalendar, IconCheck, IconGrid, IconHome, IconLogout, IconUsers } from "./icons";
 
-type NavItem = { href: string; label: string; icon: (p: { className?: string }) => ReactNode; count?: number; alert?: boolean };
+type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
 function CountPill({ n, alert }: { n: number; alert?: boolean }) {
-  return <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${alert ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"}`}>{n}</span>;
+  return <span className={`ml-auto rounded-full px-2 py-px text-[11px] font-semibold tabular-nums ${alert ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"}`}>{n}</span>;
 }
 
 type Ctx = { me: Me; org: Org; isLead: boolean; refresh: () => Promise<void>; selectOrg: (id: string) => void };
@@ -70,79 +70,81 @@ export function AppShell({ children }: { children: ReactNode }) {
       </AppContext.Provider>
     );
   }
+  return (
+    <AppContext.Provider value={{ me, org, isLead: org.role !== "member", refresh, selectOrg }}>
+      <Frame me={me} org={org} selectOrg={selectOrg} onSignOut={async () => { await signOut(); router.replace("/"); }}>{children}</Frame>
+    </AppContext.Provider>
+  );
+}
+
+function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; selectOrg: (id: string) => void; onSignOut: () => void; children: ReactNode }) {
+  const pathname = usePathname();
   const isLead = org.role !== "member";
-  // TODO(counts): nav items accept `count` (and `alert` for overdue/fry counts) but the shell
-  // doesn't load per-tab totals yet. Wire them up once there's a cheap summary endpoint.
+  // Review badge: size of the existing review queue, refreshed on navigation so it drops after reviewing.
+  const pending = useLoad(() => (isLead ? api<SubmissionRow[]>(`/orgs/${org.id}/review`).then((r) => r.length) : Promise.resolve(0)), [org.id, isLead, pathname]);
+
+  // TODO(nav): the mockup also lists BP check-in, GM messages, Points and Fry log (with an alert
+  // count). Those features have no pages or API yet, so they're left out rather than linking to 404s.
   const nav: NavItem[] = [
-    { href: "/app", label: "Tasks", icon: IconTasks },
-    { href: "/app/schedule", label: "Schedule", icon: IconCalendar },
-    { href: "/app/study", label: "Study", icon: IconBook },
-    ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconInbox }] : []),
+    { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
+    ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
+    { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
+    { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const role = isLead ? org.lead_label : org.member_label;
 
   return (
-    <AppContext.Provider value={{ me, org, isLead, refresh, selectOrg }}>
-      {/* Desktop: the app sits in a rounded white frame on the page background. Phones: full-bleed. */}
-      <div className="md:p-8">
-        <div className="mx-auto flex min-h-dvh max-w-[1376px] bg-surface md:min-h-[calc(100dvh-4rem)] md:rounded-[28px] md:shadow-frame">
-          <aside className="sticky top-8 hidden h-[calc(100dvh-4rem)] w-[232px] shrink-0 flex-col overflow-y-auto rounded-l-[28px] border-r border-line bg-raised px-4 py-6 md:flex">
-            <Wordmark className="px-2 text-2xl" />
+    // Phones: full-bleed on the raised background. Desktop: a white rounded frame on the page background.
+    <div className="min-h-dvh bg-raised md:bg-bg md:p-8">
+      <div className="mx-auto flex min-h-dvh max-w-[1376px] md:min-h-[calc(100dvh-4rem)] md:rounded-[28px] md:bg-surface md:shadow-frame">
+        <aside className="sticky top-8 hidden h-[calc(100dvh-4rem)] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-line px-5 pb-6 pt-7 md:flex">
+          <Link href="/app" aria-label="PLARE home" className="self-start px-2"><Wordmark className="text-[22px]" /></Link>
 
-            <div className="mt-8 flex flex-col items-center text-center">
-              <Avatar name={me.name} className="size-[72px] text-xl" />
-              <p className="mt-3 max-w-full truncate font-display font-semibold">{me.name}</p>
-              <p className="max-w-full truncate text-xs text-muted">{role}{me.is_demo ? " · demo account" : ""}</p>
-              <label className="sr-only" htmlFor="org">Group</label>
-              <select
-                id="org"
-                value={org.id}
-                onChange={(e) => selectOrg(e.target.value)}
-                className="mt-3 w-full truncate rounded-xl border border-line bg-surface px-2.5 py-2 text-center text-xs font-medium text-muted"
-              >
-                {me.orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
-            </div>
-
-            <nav aria-label="Main" className="mt-8 flex flex-col gap-1">
-              {nav.map((n) => {
-                const on = active(n.href);
-                return (
-                  <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
-                    className={`flex min-h-11 items-center gap-3 rounded-full px-4 text-sm font-medium transition-colors ${on ? "bg-accent text-accent-fg" : "text-muted hover:bg-surface hover:text-text"}`}>
-                    <n.icon className="shrink-0" />
-                    {n.label}
-                    {n.count ? <CountPill n={n.count} alert={n.alert} /> : null}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="mt-auto flex flex-col gap-1 pt-6">
-              <ThemeToggle className="justify-start! rounded-full" />
-              <Button variant="ghost" className="justify-start! rounded-full" onClick={async () => { await signOut(); router.replace("/"); }}>
-                <IconLogout />Sign out
-              </Button>
-            </div>
-          </aside>
-
-          <div className="flex min-w-0 flex-1 flex-col">
-            <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:hidden">
-              <Wordmark className="text-lg" />
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm text-muted">{org.name}</span>
-                <Avatar name={me.name} className="size-8 text-[11px]" />
-              </span>
-            </header>
-            {org.is_demo && (
-              <p className="border-b border-line bg-warn-soft px-4 py-1.5 text-center text-xs text-warn md:rounded-tr-[28px]">
-                Demo group. Every person and record here is fictional.
-              </p>
-            )}
-            <main className="flex-1 px-4 pb-28 pt-6 sm:px-8 md:px-10 md:pb-10 md:pt-8">{children}</main>
+          <div className="mt-9 flex flex-col items-center text-center">
+            <Avatar name={me.name} className="size-[72px] text-[22px]" />
+            <p className="mt-3.5 max-w-full truncate text-[15px] font-semibold">{me.name.split(" ")[0]}</p>
+            <p className="mt-0.5 flex max-w-full flex-wrap items-center justify-center text-xs leading-relaxed text-muted">
+              <span className="shrink-0">{role}&nbsp;·&nbsp;</span>
+              {me.orgs.length > 1 ? (
+                <select aria-label="Group" value={org.id} onChange={(e) => selectOrg(e.target.value)}
+                  className="max-w-full cursor-pointer rounded bg-transparent text-center text-xs text-muted underline decoration-dotted underline-offset-2">
+                  {me.orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+              ) : <span>{org.name}</span>}
+            </p>
           </div>
+
+          <nav aria-label="Main" className="mt-8 flex flex-col gap-1">
+            {nav.map((n) => {
+              const on = active(n.href);
+              return (
+                <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
+                  className={`flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-[14.5px] transition-colors ${on ? "bg-accent font-semibold text-accent-fg" : "text-text hover:bg-raised"}`}>
+                  <n.icon width={18} height={18} className={on ? "" : "text-muted"} />
+                  {n.label}
+                  {n.count ? <CountPill n={n.count} alert={n.alert} /> : null}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto flex flex-col gap-0.5 pt-6">
+            <ThemeToggle className="min-h-9! justify-start! px-3! text-[13px] font-medium!" />
+            <Button variant="ghost" className="min-h-9! justify-start! px-3! text-[13px] font-medium!" onClick={onSignOut}>
+              <IconLogout width={18} height={18} />Sign out
+            </Button>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-0">
+          {org.is_demo && (
+            <p className="border-b border-line bg-warn-soft px-4 py-1.5 text-center text-xs text-warn md:rounded-tr-[28px]">
+              Demo group. Every person and record here is fictional.
+            </p>
+          )}
+          <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>
       </div>
 
@@ -151,13 +153,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           const on = active(n.href);
           return (
             <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
-              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${on ? "text-accent" : "text-muted"}`}>
-              <span className={`grid h-7 w-12 place-items-center rounded-full ${on ? "bg-accent-soft" : ""}`}><n.icon /></span>
-              {n.label}
+              className={`flex min-h-[76px] flex-1 flex-col items-center justify-center gap-1.5 text-[12px] ${on ? "font-semibold text-accent" : "text-muted"}`}>
+              <n.icon width={24} height={24} />
+              {n.short ?? n.label}
             </Link>
           );
         })}
       </nav>
-    </AppContext.Provider>
+    </div>
   );
 }

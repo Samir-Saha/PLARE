@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { api, post } from "@/lib/api";
 import { useApp } from "@/components/shell";
-import { Avatar, Badge, Button, Card, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Notice, PageHeader, Skeleton, useLoad, Page } from "@/components/ui";
 
 type Member = { user_id: string; name: string; role: "admin" | "lead" | "member" };
 const KINDS = [["pledge_class", "Pledge class"], ["study_group", "Study group"], ["intern_team", "Intern team"], ["project_group", "Class project group"], ["club", "Club"]];
@@ -40,7 +40,7 @@ export default function Group() {
   const label = (m: Member) => (m.role === "admin" ? "Admin" : m.role === "lead" ? org.lead_label : org.member_label);
 
   return (
-    <>
+    <Page>
       <PageHeader title={org ? org.name : "Start a group"} hint={org ? undefined : "Create one below, or open an invite link someone sent you."} />
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
 
@@ -57,7 +57,7 @@ export default function Group() {
               {invite && <input readOnly value={invite} aria-label="Invite link" onFocus={(e) => e.target.select()} className="mt-3 w-full rounded-xl border border-line bg-raised px-3 py-2 font-mono text-xs" />}
             </Card>
           )}
-          <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em] tabular-nums">{members.data ? `${members.data.length} people` : "People"}</h2>
+          <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em] tabular-nums">{members.data ? `${members.data.length} people` : "People"}</h2>
           {!members.data && <Skeleton />}
           <ul className="mb-10 divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {members.data?.map((m) => (
@@ -92,6 +92,6 @@ export default function Group() {
           <Button type="submit">Create group</Button>
         </form>
       </Card>
-    </>
+    </Page>
   );
 }
