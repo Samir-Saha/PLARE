@@ -7,6 +7,7 @@ import { useApp } from "@/components/shell";
 import { ButtonLink, CheckLink, CheckMark, Empty, ListRow, Notice, Page, Progress, SectionHeader, Skeleton, useLoad } from "@/components/ui";
 import { CalendarRail, RailFooterLink, meetingItems, type RailItem } from "./calendar-rail";
 import { TasksSection, type OpenTask } from "./tasks";
+import { MyPlan } from "@/components/plan";
 
 type StudyOverview = { active: Session | null; week_seconds: number; total_seconds: number; history: Session[] };
 
@@ -20,6 +21,7 @@ export function MemberHome() {
   const open = useLoad(() => api<OpenTask[]>(`/orgs/${org.id}/tasks/open`), [org.id]);
   const meetings = useLoad(() => api<Meeting[]>(`/orgs/${org.id}/meetings`), [org.id]);
   const study = useLoad(() => api<StudyOverview>(`/orgs/${org.id}/study`), [org.id]);
+  const [planVersion, setPlanVersion] = useState(0);
   const log = useLoad(() => api<LogEntry[]>(`/orgs/${org.id}/log`), [org.id]);
 
   const all = tasks.data ?? [];
@@ -98,8 +100,10 @@ export function MemberHome() {
         </ul>
       </section>
 
+      <MyPlan orgId={org.id} version={planVersion} />
+
       <div className="mb-8">
-        <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead={false} memberLabel={org.member_label} />
+        <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead={false} memberLabel={org.member_label} onChange={() => setPlanVersion((v) => v + 1)} />
       </div>
 
       <section aria-labelledby="my-log">

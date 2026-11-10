@@ -168,7 +168,7 @@ export function LeadHome() {
         </section>
       )}
 
-      {hasOwnTasks && <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead memberLabel={org.member_label} />}
+      {hasOwnTasks && <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead memberLabel={org.member_label} onChange={progress.reload} />}
     </Page>
   );
 }

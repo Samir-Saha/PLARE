@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import Base, engine
-from .routers import orgs, schedule, study, tasks
+from .routers import orgs, planner, schedule, study, tasks
 
 
 @asynccontextmanager
@@ -25,7 +25,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "X-Demo-User"],
 )
-for r in (orgs.router, tasks.router, schedule.router, study.router):
+for r in (orgs.router, tasks.router, schedule.router, study.router, planner.router):
     app.include_router(r)
 
 

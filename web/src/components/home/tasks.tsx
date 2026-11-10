@@ -4,6 +4,7 @@ import { api, post, type Assignment } from "@/lib/api";
 import { fmtDue } from "@/lib/format";
 import { IconClose } from "@/components/icons";
 import { Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, Skeleton, field, type Bar } from "@/components/ui";
+import { SuggestOwner } from "@/components/plan";
 
 const STATUS: Record<Assignment["status"], { label: string }> = {
   not_started: { label: "Not started" },
@@ -21,11 +22,14 @@ export type OpenTask = { task_id: string; title: string; description: string; du
 type Loaded<T> = { data: T | null; error: string; reload: () => void };
 
 /** The viewer's own tasks with To do / In review / Approved tabs, plus open tasks to claim. */
-export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Your tasks" }: {
+export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Your tasks", onChange }: {
   tasks: Loaded<Assignment[]>; open: Loaded<OpenTask[]>; tz: string; isLead: boolean; memberLabel: string; title?: string;
+  /** Called after any task changes, so other panels (like Your plan) can refresh. */
+  onChange?: () => void;
 }) {
   const [filter, setFilter] = useState<"todo" | "review" | "done">("todo");
   const [error, setError] = useState("");
+  const changed = () => { tasks.reload(); open.reload(); onChange?.(); };
   const all = tasks.data ?? [];
   const groups = {
     todo: all.filter((t) => ["not_started", "in_progress", "needs_revision"].includes(t.status)),
@@ -56,7 +60,7 @@ export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Yo
         </Empty>
       )}
       <ul className="space-y-2.5">
-        {groups[filter].map((t) => <TaskRow key={t.id} task={t} tz={tz} onChange={tasks.reload} />)}
+        {groups[filter].map((t) => <TaskRow key={t.id} task={t} tz={tz} onChange={changed} />)}
       </ul>
 
       {open.data && open.data.length > 0 && (
@@ -64,18 +68,36 @@ export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Yo
           <h2 className="mb-3.5 mt-9 font-display text-lg font-semibold tracking-[-0.01em]">Open tasks anyone can claim</h2>
           <ul className="space-y-2.5">
             {open.data.map((t) => (
-              <ListRow key={t.task_id} bar="light" className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[15px] font-semibold leading-snug">{t.title}</p>
-                  <p className="mt-0.5 text-[13px] text-muted">{t.description || fmtDue(t.due_at, tz)}</p>
-                </div>
-                <Button onClick={() => post(`/tasks/${t.task_id}/claim`).then(() => { tasks.reload(); open.reload(); }, (e) => setError(e.message))}>Claim</Button>
-              </ListRow>
+              <OpenTaskRow key={t.task_id} task={t} tz={tz} isLead={isLead} onChange={changed} onError={setError} />
             ))}
           </ul>
         </>
       )}
     </section>
+  );
+}
+
+/** An open task anyone can claim. Leads can also see who has the most spare time for it and assign it. */
+function OpenTaskRow({ task, tz, isLead, onChange, onError }: { task: OpenTask; tz: string; isLead: boolean; onChange: () => void; onError: (m: string) => void }) {
+  const [suggesting, setSuggesting] = useState(false);
+  return (
+    <ListRow bar="light">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold leading-snug">{task.title}</p>
+          <p className="mt-0.5 text-[13px] text-muted">{task.description ? `${task.description} · ` : ""}{fmtDue(task.due_at, tz)}</p>
+        </div>
+        <div className="flex gap-2">
+          {isLead && (
+            <Button variant={suggesting ? "ghost" : "secondary"} onClick={() => setSuggesting((v) => !v)}>
+              {suggesting ? "Hide" : "Suggest owner"}
+            </Button>
+          )}
+          <Button onClick={() => post(`/tasks/${task.task_id}/claim`).then(onChange, (e) => onError(e.message))}>Claim</Button>
+        </div>
+      </div>
+      {suggesting && <SuggestOwner taskId={task.task_id} onAssigned={onChange} />}
+    </ListRow>
   );
 }
 
@@ -149,7 +171,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
 }
 
 export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: string; onDone: () => void }) {
-  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members" });
+  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members", estimate: "30" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
@@ -161,7 +183,7 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
     try {
       await post(`/orgs/${orgId}/tasks`, {
         title: form.title, description: form.description, category: form.category, evidence: form.evidence,
-        assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null,
+        assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null, estimate_minutes: Number(form.estimate),
       });
       onDone();
     } catch (err) {
@@ -181,6 +203,11 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
           </select>
         </label>
         <label className="text-sm font-medium">Due<input type="datetime-local" value={form.due} onChange={set("due")} className={field} /></label>
+        <label className="text-sm font-medium">Time needed
+          <select value={form.estimate} onChange={set("estimate")} className={field}>
+            {[["15", "15 min"], ["30", "30 min"], ["60", "1 hour"], ["90", "1.5 hours"], ["120", "2 hours"], ["180", "3 hours"], ["300", "5 hours"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
         <label className="text-sm font-medium">Proof required
           <select value={form.evidence} onChange={set("evidence")} className={field}>
             <option value="any">Note or file</option><option value="text">Written note</option><option value="photo">Photo</option><option value="none">Nothing to submit</option>
