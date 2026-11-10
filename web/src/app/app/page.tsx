@@ -4,6 +4,7 @@ import { api, post, type Assignment } from "@/lib/api";
 import { fmtDue } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import { Badge, Button, Card, Empty, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { MyPlan, SuggestOwner } from "@/components/plan";
 
 const STATUS: Record<Assignment["status"], { label: string; tone: "neutral" | "accent" | "ok" | "warn" }> = {
   not_started: { label: "Not started", tone: "neutral" },
@@ -22,6 +23,8 @@ export default function Tasks() {
   const [filter, setFilter] = useState<"todo" | "review" | "done">("todo");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [planVersion, setPlanVersion] = useState(0);
+  const refreshAll = () => { tasks.reload(); open.reload(); setPlanVersion((v) => v + 1); };
 
   const all = tasks.data ?? [];
   const groups = {
@@ -40,13 +43,15 @@ export default function Tasks() {
         action={isLead && <Button variant="primary" onClick={() => setCreating((v) => !v)}>{creating ? "Close" : "New task"}</Button>}
       />
       {error && <div className="mb-3"><Notice>{error}</Notice></div>}
-      {creating && <NewTask orgId={org.id} memberLabel={org.member_label} onDone={() => { setCreating(false); tasks.reload(); open.reload(); }} />}
+      {creating && <NewTask orgId={org.id} memberLabel={org.member_label} onDone={() => { setCreating(false); refreshAll(); }} />}
 
       {all.length > 0 && (
         <div className="mb-4 h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Tasks approved">
           <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
         </div>
       )}
+
+      <MyPlan orgId={org.id} version={planVersion} />
 
       <div role="tablist" aria-label="Task filter" className="mb-3 flex gap-1">
         {(["todo", "review", "done"] as const).map((f) => (
@@ -65,7 +70,7 @@ export default function Tasks() {
         </Empty>
       )}
       <ul className="space-y-2">
-        {groups[filter].map((t) => <TaskRow key={t.id} task={t} tz={me.timezone} onChange={tasks.reload} />)}
+        {groups[filter].map((t) => <TaskRow key={t.id} task={t} tz={me.timezone} onChange={refreshAll} />)}
       </ul>
 
       {open.data && open.data.length > 0 && (
@@ -74,19 +79,36 @@ export default function Tasks() {
           <ul className="space-y-2">
             {open.data.map((t) => (
               <li key={t.task_id}>
-                <Card className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{t.title}</p>
-                    <p className="text-sm text-muted">{t.description || fmtDue(t.due_at, me.timezone)}</p>
-                  </div>
-                  <Button onClick={() => post(`/tasks/${t.task_id}/claim`).then(() => { tasks.reload(); open.reload(); }, (e) => setError(e.message))}>Claim</Button>
-                </Card>
+                <OpenTaskCard task={t} tz={me.timezone} isLead={isLead} onChange={refreshAll} onError={setError} />
               </li>
             ))}
           </ul>
         </>
       )}
     </>
+  );
+}
+
+function OpenTaskCard({ task, tz, isLead, onChange, onError }: { task: OpenTask; tz: string; isLead: boolean; onChange: () => void; onError: (m: string) => void }) {
+  const [suggesting, setSuggesting] = useState(false);
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-medium">{task.title}</p>
+          <p className="text-sm text-muted">{task.description ? `${task.description} · ` : ""}{fmtDue(task.due_at, tz)}</p>
+        </div>
+        <div className="flex gap-2">
+          {isLead && (
+            <Button variant={suggesting ? "ghost" : "secondary"} onClick={() => setSuggesting((v) => !v)}>
+              {suggesting ? "Hide" : "Suggest owner"}
+            </Button>
+          )}
+          <Button onClick={() => post(`/tasks/${task.task_id}/claim`).then(onChange, (e) => onError(e.message))}>Claim</Button>
+        </div>
+      </div>
+      {suggesting && <SuggestOwner taskId={task.task_id} onAssigned={onChange} />}
+    </Card>
   );
 }
 
@@ -161,7 +183,7 @@ function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; onChang
 }
 
 function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: string; onDone: () => void }) {
-  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members" });
+  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members", estimate: "30" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
@@ -174,7 +196,7 @@ function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: s
     try {
       await post(`/orgs/${orgId}/tasks`, {
         title: form.title, description: form.description, category: form.category, evidence: form.evidence,
-        assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null,
+        assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null, estimate_minutes: Number(form.estimate),
       });
       onDone();
     } catch (err) {
@@ -194,6 +216,11 @@ function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: s
           </select>
         </label>
         <label className="text-sm font-medium">Due<input type="datetime-local" value={form.due} onChange={set("due")} className={field} /></label>
+        <label className="text-sm font-medium">Time needed
+          <select value={form.estimate} onChange={set("estimate")} className={field}>
+            {[["15", "15 min"], ["30", "30 min"], ["60", "1 hour"], ["90", "1.5 hours"], ["120", "2 hours"], ["180", "3 hours"], ["300", "5 hours"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
         <label className="text-sm font-medium">Proof required
           <select value={form.evidence} onChange={set("evidence")} className={field}>
             <option value="any">Note or file</option><option value="text">Written note</option><option value="photo">Photo</option><option value="none">Nothing to submit</option>
