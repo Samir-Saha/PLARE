@@ -5,7 +5,7 @@ import { fmtClock, fmtDay, fmtDuration, fmtTime } from "@/lib/format";
 import { clearGoogleToken, googleToken, signInWithGoogle, supabase } from "@/lib/supabase";
 import { useApp } from "@/components/shell";
 import { SlotList } from "@/components/slots";
-import { Button, Card, Empty, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { Button, Card, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, useLoad } from "@/components/ui";
 
 type Overview = { active: Session | null; week_seconds: number; total_seconds: number; history: Session[] };
 type Plan = { has_availability: boolean; timezone: string; blocks: { start: string; end: string; minutes: number }[]; planned_minutes: number; target_minutes: number; shortfall_minutes: number };
@@ -82,10 +82,24 @@ export default function Study() {
       <PageHeader title="Study hours" hint={overview.data ? `${fmtDuration(overview.data.week_seconds)} in the last 7 days · ${fmtDuration(overview.data.total_seconds)} total` : undefined} />
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
 
-      <Card className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      {overview.data && (
+        <SummaryRow>
+          <SummaryCard tone="navy" title="Last 7 days" stat={`${fmtDuration(overview.data.week_seconds)} of a ${target} hour goal`}
+            pct={(overview.data.week_seconds / (target * 3600)) * 100} />
+          {plan.data?.has_availability ? (
+            <SummaryCard tone="mid" title="Planned this week" stat={`${fmtDuration(plan.data.planned_minutes * 60)} of ${fmtDuration(plan.data.target_minutes * 60)} fits your free time`}
+              pct={plan.data.target_minutes ? (plan.data.planned_minutes / plan.data.target_minutes) * 100 : 0} />
+          ) : (
+            <SummaryCard tone="mid" title="Planned this week" stat="Add availability to get a plan" />
+          )}
+          <SummaryCard tone="light" title="All time" stat={`${fmtDuration(overview.data.total_seconds)} logged`} />
+        </SummaryRow>
+      )}
+
+      <Card className="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted">{active ? (active.state === "paused" ? "Paused" : "Studying now") : "No session running"}</p>
-          <p className="font-mono text-4xl font-semibold tabular-nums tracking-tight" aria-live="off">{fmtClock(elapsed)}</p>
+          <p className="font-display text-5xl font-semibold tabular-nums tracking-[-0.02em]" aria-live="off">{fmtClock(elapsed)}</p>
         </div>
         <div className="flex gap-2">
           {!active && <Button variant="primary" onClick={() => act("start")}>Start studying</Button>}
@@ -95,17 +109,17 @@ export default function Study() {
         </div>
       </Card>
 
-      <section className="mb-8">
+      <section className="mb-10">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Your best study times this week</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.01em]">Your best study times this week</h2>
             <p className="text-sm text-muted">
               {me.calendar_synced_at ? `Built around your Google Calendar (imported ${fmtDay(me.calendar_synced_at, me.timezone)}).` : "Connect Google Calendar and PLARE plans around your classes and commitments."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm text-muted">Goal{" "}
-              <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-text">
+              <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="rounded-xl border border-line bg-surface px-2.5 py-1.5 text-sm text-text">
                 {[5, 8, 10, 12, 15, 20].map((h) => <option key={h} value={h}>{h} hours</option>)}
               </select>
             </label>
@@ -126,23 +140,21 @@ export default function Study() {
             )}
             <ol className="grid gap-2 sm:grid-cols-2">
               {plan.data.blocks.map((b) => (
-                <li key={b.start}>
-                  <Card className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{fmtDay(b.start, plan.data!.timezone)}</p>
-                      <p className="text-sm text-muted">{fmtTime(b.start, plan.data!.timezone)} to {fmtTime(b.end, plan.data!.timezone)}</p>
-                    </div>
-                    <span className="text-sm font-medium tabular-nums">{fmtDuration(b.minutes * 60)}</span>
-                  </Card>
-                </li>
+                <ListRow key={b.start} bar={b.minutes >= 90 ? "navy" : b.minutes >= 60 ? "mid" : "light"} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{fmtDay(b.start, plan.data!.timezone)}</p>
+                    <p className="text-sm text-muted tabular-nums">{fmtTime(b.start, plan.data!.timezone)} to {fmtTime(b.end, plan.data!.timezone)}</p>
+                  </div>
+                  <span className="font-display text-lg font-semibold tabular-nums">{fmtDuration(b.minutes * 60)}</span>
+                </ListRow>
               ))}
             </ol>
           </>
         )}
       </section>
 
-      <section className="mb-8">
-        <h2 className="mb-1 text-lg font-semibold">Study together</h2>
+      <section className="mb-10">
+        <h2 className="mb-1 text-xl font-semibold tracking-[-0.01em]">Study together</h2>
         <p className="mb-3 text-sm text-muted">Two-hour windows when the most {org.member_label.toLowerCase()}s are free.</p>
         {group.error && <Notice>{group.error}</Notice>}
         {!group.data && !group.error && <Skeleton rows={2} />}
@@ -151,10 +163,10 @@ export default function Study() {
 
       {overview.data && overview.data.history.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Recent sessions</h2>
-          <ul className="divide-y divide-line rounded-xl border border-line bg-surface">
+          <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Recent sessions</h2>
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {overview.data.history.slice(0, 8).map((s) => (
-              <li key={s.id} className="flex justify-between px-4 py-2.5 text-sm">
+              <li key={s.id} className="flex justify-between gap-3 px-4 py-3 text-sm tabular-nums">
                 <span>{fmtDay(s.started_at, me.timezone)}, {fmtTime(s.started_at, me.timezone)}</span>
                 <span className="font-medium tabular-nums">{fmtDuration(s.elapsed_seconds)}</span>
               </li>
