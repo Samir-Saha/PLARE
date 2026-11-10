@@ -101,3 +101,12 @@ def test_study_plan_reports_shortfall_and_respects_daily_cap():
 def test_study_plan_ignores_chunks_shorter_than_min_block():
     plan = plan_study_blocks([(t(2, 9), t(2, 9, 30))], t(2, 0), t(3, 0), 60, day_start_hour=0, day_end_hour=24)
     assert plan.blocks == [] and plan.shortfall_minutes == 60
+
+
+def test_database_url_normalization():
+    from app.db import normalize_url
+
+    assert normalize_url("postgresql://u:p@h:5432/db") == "postgresql+psycopg://u:p@h:5432/db"
+    assert normalize_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalize_url("postgresql+psycopg://u@h/db") == "postgresql+psycopg://u@h/db"
+    assert normalize_url("sqlite:///./plare.db") == "sqlite:///./plare.db"
