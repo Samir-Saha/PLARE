@@ -98,7 +98,7 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
     { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
-  const role = isLead ? org.lead_label : org.member_label;
+  const role = org.title || (isLead ? org.lead_label : org.member_label);
 
   return (
     // Phones: full-bleed on the raised background. Desktop: a white rounded frame on the page background.
@@ -146,7 +146,7 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
         <div className="flex min-w-0 flex-1 flex-col pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-0">
           {org.is_demo && (
             <p className="border-b border-line bg-warn-soft px-4 py-1.5 text-center text-xs text-warn md:rounded-tr-[28px]">
-              Demo group. Every person and record here is fictional.
+              Demo group. Real names, but every record here is made up for the presentation.
             </p>
           )}
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>

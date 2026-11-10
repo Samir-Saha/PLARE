@@ -63,7 +63,7 @@ export async function signOut() {
   if (supabase) await supabase.auth.signOut();
 }
 
-export type Org = { id: string; name: string; kind: string; role: "admin" | "lead" | "member"; member_label: string; lead_label: string; is_demo: boolean };
+export type Org = { id: string; name: string; kind: string; role: "admin" | "lead" | "member"; member_label: string; lead_label: string; is_demo: boolean; title?: string | null };
 export type Me = { id: string; email: string; name: string; timezone: string; is_demo: boolean; calendar_synced_at: string | null; orgs: Org[] };
 export type Assignment = { id: string; title: string; description: string; category: string; priority: string; due_at: string | null; evidence: "any" | "text" | "photo" | "none"; status: "not_started" | "in_progress" | "submitted" | "approved" | "needs_revision"; overdue: boolean; feedback: string };
 export type SubmissionRow = { id: string; task_title: string; category: string; user_name: string; text: string; has_file: boolean; file_type: string | null; status: string; feedback: string; created_at: string };
