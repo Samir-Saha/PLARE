@@ -6,9 +6,19 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PLARE",
   description: "Tasks, submissions, and shared schedules for any group that has to get things done together.",
+  // Lets iPhone users "Add to Home Screen" and open PLARE full-screen like an app.
+  appleWebApp: { capable: true, title: "PLARE", statusBarStyle: "default" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#121117" },
+  ],
+};
 
 // Applies the saved theme before paint so there's no flash.
 const themeScript = `try{var t=localStorage.getItem("plare.theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}`;
