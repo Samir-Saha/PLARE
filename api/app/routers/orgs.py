@@ -8,7 +8,7 @@ from zoneinfo import available_timezones
 
 from ..auth import LEADS, audit, current_user, membership
 from ..db import get_db, now
-from ..models import Invitation, Membership, Notification, Organization, Role, User
+from ..models import Invitation, MemberTitle, Membership, Notification, Organization, Role, User
 
 router = APIRouter()
 
@@ -42,6 +42,7 @@ class RoleIn(BaseModel):
 
 def _me(db: Session, user: User) -> dict:
     rows = db.scalars(select(Membership).where(Membership.user_id == user.id)).all()
+    titles = dict(db.execute(select(MemberTitle.org_id, MemberTitle.title).where(MemberTitle.user_id == user.id)).all())
     return {
         "id": user.id,
         "email": user.email,
@@ -58,6 +59,7 @@ def _me(db: Session, user: User) -> dict:
                 "member_label": m.org.member_label,
                 "lead_label": m.org.lead_label,
                 "is_demo": m.org.is_demo,
+                "title": titles.get(m.org.id),  # optional position, e.g. "NME"; null when unset
             }
             for m in rows
         ],
@@ -100,8 +102,10 @@ def create_org(body: OrgIn, user: User = Depends(current_user), db: Session = De
 def members(org_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     membership(db, user, org_id)
     rows = db.scalars(select(Membership).where(Membership.org_id == org_id)).all()
+    titles = dict(db.execute(select(MemberTitle.user_id, MemberTitle.title).where(MemberTitle.org_id == org_id)).all())
     return [
-        {"user_id": m.user_id, "name": m.user.name, "role": m.role, "timezone": m.user.timezone}
+        {"user_id": m.user_id, "name": m.user.name, "role": m.role, "timezone": m.user.timezone,
+         "title": titles.get(m.user_id)}
         for m in sorted(rows, key=lambda m: m.user.name.lower())
     ]
 

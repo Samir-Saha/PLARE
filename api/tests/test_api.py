@@ -238,3 +238,17 @@ def test_demo_seed_is_usable(client):
     assert len(client.get(f"/orgs/{org}/tasks/mine", headers=h).json()) == 5
     best = client.get(f"/orgs/{org}/best-times?duration=90&days=7", headers=h).json()
     assert best["options"][0]["count"] == 18
+
+
+def test_member_titles_are_optional_and_scoped_to_the_group(client, world):
+    from app.models import MemberTitle
+
+    with SessionLocal() as db:
+        db.add(MemberTitle(org_id=world["org_a"], user_id=world["admin"], title="NME"))
+        db.commit()
+    rows = client.get(f"/orgs/{world['org_a']}/members", headers=as_user("m1@t.demo")).json()
+    titles = {r["name"]: r["title"] for r in rows}
+    assert titles["admin"] == "NME" and titles["m1"] is None
+    me = client.get("/me", headers=as_user("admin@t.demo")).json()
+    assert me["orgs"][0]["title"] == "NME"
+    assert client.get("/me", headers=as_user("m1@t.demo")).json()["orgs"][0]["title"] is None
