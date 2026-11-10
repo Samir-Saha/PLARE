@@ -72,3 +72,5 @@ export type Slots = { total: number; timezone: string; no_data: string[]; option
 export type Session = { id: string; started_at: string; ended_at: string | null; paused_seconds: number; elapsed_seconds: number; state: "running" | "paused" | "ended" };
 export type Meeting = { id: string; title: string; location: string; start_at: string; end_at: string; status: string; yes: number; no: number; maybe: number; my_response: string | null };
 export type Progress = { total: number; approved: number; pending_review: number; overdue: number; members: { user_id: string; name: string; total: number; approved: number; submitted: number; needs_revision: number; overdue: number }[] };
+export type LogEntry = { id: string; user_id: string; user_name: string; kind: string; label: string; detail: string; automatic: boolean; created_by: string | null; created_by_name: string | null; created_at: string };
+export type LogSummary = { today: number; total: number; members: { user_id: string; name: string; count: number }[] };
