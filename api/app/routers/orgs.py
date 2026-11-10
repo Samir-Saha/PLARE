@@ -197,8 +197,15 @@ def notifications(user: User = Depends(current_user), db: Session = Depends(get_
     ]
 
 
+class ReadIn(BaseModel):
+    ids: list[str] | None = None  # omit to mark everything read
+
+
 @router.post("/notifications/read", status_code=204)
-def mark_read(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    for n in db.scalars(select(Notification).where(Notification.user_id == user.id, Notification.read_at.is_(None))):
+def mark_read(body: ReadIn | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    q = select(Notification).where(Notification.user_id == user.id, Notification.read_at.is_(None))
+    if body and body.ids is not None:
+        q = q.where(Notification.id.in_(body.ids))
+    for n in db.scalars(q):
         n.read_at = now()
     db.commit()

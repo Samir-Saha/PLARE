@@ -4,8 +4,13 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from .db import Base, SessionLocal, engine, now
-from .models import (Assignment, AvailabilityRule, Membership, Organization, Role, StudySession, Submission,
-                     Task, TaskStatus, User)
+from .engine import gm as gm_rules
+from .models import (Assignment, AvailabilityRule, GmCode, GmMessage, GmSettings, Membership, Organization, Role,
+                     StudySession, Submission, Task, TaskStatus, User)
+
+GM_GOALS = ["Finish the capstone wireframes.", "Two hours on the data structures problem set.",
+            "Coffee chat with a brother before lunch.", "Gym at 7, then study for the stats midterm.",
+            "Draft my BP post caption.", "Get through chapter 6 and make flashcards."]
 
 PLEDGES = ["Avery Lin", "Blake Osei", "Camila Reyes", "Devon Park", "Elena Novak", "Farid Haddad", "Grace Kim",
            "Hugo Martins", "Imani Cole", "Jonah Weiss", "Kira Tanaka", "Leo Fontaine", "Mina Shah", "Noah Brandt",
@@ -53,7 +58,6 @@ def seed_demo() -> bool:
 
         t = now()
         specs = [
-            ("Good morning message", "Good Morning Messages", "Send your good morning message to your assigned brother.", t + timedelta(hours=14), "text", "high"),
             ("BP post: week 6", "BP Posts", "Post this week's brother-pledge photo.", t + timedelta(days=2), "photo", "normal"),
             ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", t + timedelta(days=5), "none", "normal"),
             ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", t + timedelta(days=3), "any", "normal"),
@@ -86,6 +90,26 @@ def seed_demo() -> bool:
         db.add(Task(org_id=org.id, title="Book a room for game night", category="Events", claimable=True,
                     description="Open task: first to claim it owns it.", due_at=t + timedelta(days=4),
                     created_by=leads[0].id, estimate_minutes=20))
+
+        # GM messages: due 6:00 AM New York time. Today's code word is "lantern"; pledges can send today's.
+        tz = "America/New_York"
+        db.add(GmSettings(org_id=org.id, enabled=True, due_minute=gm_rules.DEFAULT_DUE_MINUTE,
+                          reminder_minutes=gm_rules.DEFAULT_REMINDER_MINUTES, timezone=tz))
+        today = gm_rules.local_day(t, tz)
+        for back, code in ((0, "lantern"), (1, "compass"), (2, "harbor")):
+            day = today - timedelta(days=back)
+            db.add(GmCode(org_id=org.id, day=day.isoformat(), code=code, set_by=admin.id))
+            if back == 0:
+                continue
+            due = gm_rules.due_at(day, gm_rules.DEFAULT_DUE_MINUTE, tz)
+            for i, u in enumerate(pledges):
+                k = (i + back) % 7
+                if k == 6:
+                    continue  # missing
+                sent = due + timedelta(minutes=12 + i) if k == 4 else due - timedelta(minutes=40 - 2 * i)
+                given = "compas" if back == 1 and k == 5 else "lighthouse" if k == 5 else code.capitalize() if k == 2 else code
+                db.add(GmMessage(org_id=org.id, user_id=u.id, day=day.isoformat(), goal=GM_GOALS[(i + back) % len(GM_GOALS)],
+                                 code_given=given, due_at=due, submitted_at=sent))
 
         for i, u in enumerate(pledges):
             for d in range(1, 4):

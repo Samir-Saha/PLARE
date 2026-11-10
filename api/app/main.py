@@ -1,11 +1,29 @@
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .db import Base, engine
-from .routers import orgs, schedule, study, tasks
+from .db import Base, SessionLocal, engine
+from .routers import gm, orgs, schedule, study, tasks
+
+log = logging.getLogger("plare.reminders")
+
+
+def _reminders_once() -> None:
+    with SessionLocal() as db:
+        gm.send_gm_reminders(db)
+
+
+async def _reminder_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(_reminders_once)
+        except Exception:  # keep the loop alive; the next minute retries
+            log.exception("GM reminder run failed")
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
@@ -15,7 +33,12 @@ async def lifespan(app: FastAPI):
         from .seed import seed_demo
 
         seed_demo()
+    task = asyncio.create_task(_reminder_loop()) if get_settings().run_reminders else None
     yield
+    if task:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 app = FastAPI(title="PLARE API", version="0.1.0", lifespan=lifespan)
@@ -25,7 +48,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "X-Demo-User"],
 )
-for r in (orgs.router, tasks.router, schedule.router, study.router):
+for r in (orgs.router, tasks.router, schedule.router, study.router, gm.router):
     app.include_router(r)
 
 

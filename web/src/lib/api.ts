@@ -72,3 +72,12 @@ export type Slots = { total: number; timezone: string; no_data: string[]; option
 export type Session = { id: string; started_at: string; ended_at: string | null; paused_seconds: number; elapsed_seconds: number; state: "running" | "paused" | "ended" };
 export type Meeting = { id: string; title: string; location: string; start_at: string; end_at: string; status: string; yes: number; no: number; maybe: number; my_response: string | null };
 export type Progress = { total: number; approved: number; pending_review: number; overdue: number; members: { user_id: string; name: string; total: number; approved: number; submitted: number; needs_revision: number; overdue: number }[] };
+export type GmSettings = { enabled: boolean; due_minute: number; reminder_minutes: number; timezone: string; day: string; due_at: string; reminder_at: string };
+export type GmFlag = "late" | "wrong_code";
+export type GmMessage = { id: string; user_id: string; user_name: string; day: string; goal: string; submitted_at: string; due_at: string; late: boolean; code_status: "ok" | "wrong" | "unset"; flags: GmFlag[]; code_given?: string };
+export type GmMine = GmSettings & { today: GmMessage | null; history: GmMessage[]; code: string | null };
+export type GmInbox = GmSettings & {
+  today: string; code: string | null; past_due: boolean; messages: GmMessage[]; not_sent: { user_id: string; name: string }[];
+  counts: { members: number; sent: number; on_time: number; flagged: number; missing: number };
+};
+export type AppNotification = { id: string; category: string; title: string; body: string; link: string; read: boolean; created_at: string };

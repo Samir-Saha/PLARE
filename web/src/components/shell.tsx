@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode, type SVGProps } from "react";
-import { api, ApiError, signOut, type Me, type Org, type SubmissionRow } from "@/lib/api";
+import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, Wordmark, useLoad } from "./ui";
-import { IconBook, IconCalendar, IconCheck, IconGrid, IconHome, IconLogout, IconUsers } from "./icons";
+import { IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLogout, IconSun, IconUsers } from "./icons";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
@@ -83,11 +83,17 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
   // Review badge: size of the existing review queue, refreshed on navigation so it drops after reviewing.
   const pending = useLoad(() => (isLead ? api<SubmissionRow[]>(`/orgs/${org.id}/review`).then((r) => r.length) : Promise.resolve(0)), [org.id, isLead, pathname]);
 
-  // TODO(nav): the mockup also lists BP check-in, GM messages, Points and Fry log (with an alert
-  // count). Those features have no pages or API yet, so they're left out rather than linking to 404s.
+  // GM badge for leads: today's flagged plus missing messages.
+  const gmAlerts = useLoad(() => (isLead
+    ? api<GmInbox>(`/orgs/${org.id}/gm/inbox`).then((r) => r.counts.flagged + r.counts.missing)
+    : Promise.resolve(0)), [org.id, isLead, pathname]);
+
+  // TODO(nav): the mockup also lists BP check-in, Points and Fry log. Those features have no pages
+  // or API yet, so they're left out rather than linking to 404s.
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
+    { href: "/app/gm", label: "GM messages", short: "GM", icon: IconSun, count: gmAlerts.data || undefined, alert: true },
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
@@ -144,6 +150,7 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
               Demo group. Every person and record here is fictional.
             </p>
           )}
+          <GmReminderBanner />
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>
       </div>
@@ -160,6 +167,47 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
           );
         })}
       </nav>
+    </div>
+  );
+}
+
+/**
+ * In-app GM reminder. Checks once a minute (and after navigation or sending a GM) for unread
+ * reminders the API created, and always has a dismiss button.
+ */
+function GmReminderBanner() {
+  const pathname = usePathname();
+  const [notes, setNotes] = useState<AppNotification[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    const load = () => api<AppNotification[]>("/notifications")
+      .then((all) => live && setNotes(all.filter((n) => n.category === "gm" && !n.read)))
+      .catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    window.addEventListener("plare:notifications", load);
+    return () => {
+      live = false;
+      clearInterval(id);
+      window.removeEventListener("plare:notifications", load);
+    };
+  }, [pathname]);
+
+  const note = notes[0];
+  if (!note) return null;
+  const dismiss = () => {
+    setNotes([]);
+    post("/notifications/read", { ids: notes.map((n) => n.id) }).catch(() => {});
+  };
+  return (
+    <div role="status" className="flex items-center gap-3 border-b border-line bg-accent-soft px-4 py-2.5 text-sm text-text md:px-9">
+      <IconSun width={18} height={18} className="shrink-0 text-accent" />
+      <p className="min-w-0 flex-1"><span className="font-semibold">{note.title}.</span> <span className="text-muted">{note.body}</span></p>
+      {pathname !== note.link && note.link && <Link href={note.link} className="shrink-0 font-semibold text-accent underline underline-offset-2">Send it</Link>}
+      <button type="button" onClick={dismiss} aria-label="Dismiss reminder" className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-raised hover:text-text">
+        <IconClose width={16} height={16} />
+      </button>
     </div>
   );
 }
