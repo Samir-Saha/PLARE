@@ -1,16 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { api, post, type SlotOption, type Slots } from "@/lib/api";
-import { fmtDay, fmtRange, fmtTime } from "@/lib/format";
+import { api, post, type Meeting, type SlotOption, type Slots } from "@/lib/api";
+import { fmtRange, fmtTime } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import { SlotList } from "@/components/slots";
-import { Button, Card, Empty, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { Button, Card, Notice, Page, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { CalendarRail, meetingItems } from "@/components/home/calendar-rail";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FIRST = 8 * 60; // grid covers 8:00 AM to midnight in 30-minute cells
 const ROWS = 32;
 type Rule = { weekday: number; start_minute: number; end_minute: number };
-type Meeting = { id: string; title: string; location: string; start_at: string; end_at: string; status: string; yes: number; no: number; maybe: number; my_response: string | null };
 
 const label = (row: number) => {
   const m = FIRST + row * 30;
@@ -101,23 +101,41 @@ export default function Schedule() {
     }
   }
 
-  // Upcoming meetings for the right rail, grouped by day in the viewer's timezone.
-  const byDay: [string, Meeting[]][] = [];
-  for (const m of meetings.data ?? []) {
-    const day = fmtDay(m.start_at, me.timezone);
-    const last = byDay[byDay.length - 1];
-    if (last && last[0] === day) last[1].push(m);
-    else byDay.push([day, [m]]);
-  }
-
   return (
-    <>
-      <PageHeader title="Schedule" hint={`Times shown in ${me.timezone.replace("_", " ")}`} />
+    <Page
+      railLabel="Meetings"
+      rail={
+        <CalendarRail
+          title="Meetings"
+          tz={me.timezone}
+          loading={!meetings.data && !meetings.error}
+          error={meetings.error}
+          emptyText={isLead ? "No meetings yet. Pick a time and propose one." : "Proposed meetings show up here for you to RSVP."}
+          items={meetingItems(meetings.data ?? [], (m) => (
+            <>
+              <p className="mt-0.5 text-xs text-muted tabular-nums">
+                <span className="sr-only">{fmtRange(m.start_at, m.end_at, me.timezone)}. </span>
+                Until {fmtTime(m.end_at, me.timezone)} · {m.maybe} maybe, {m.no} can&apos;t
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={`RSVP for ${m.title}`}>
+                {(["yes", "maybe", "no"] as const).map((r) => (
+                  <Button key={r} variant={m.my_response === r ? "primary" : "outline"} aria-pressed={m.my_response === r}
+                    className="min-h-8! rounded-lg! px-2.5! text-xs"
+                    onClick={() => post(`/meetings/${m.id}/rsvp`, { response: r }).then(meetings.reload)}>
+                    {{ yes: "Going", maybe: "Maybe", no: "Can't" }[r]}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ))}
+        />
+      }
+    >
+      <PageHeader title="Calendar" hint={`Times shown in ${me.timezone.replace("_", " ")}`} />
 
-      <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <section className="lg:col-start-1">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-semibold tracking-[-0.01em]">Best times for {org.name}</h2>
+      <section className="mb-10">
+        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Best times for {org.name}</h2>
           <label className="text-sm text-muted">
             Length{" "}
             <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="rounded-xl border border-line bg-surface px-2.5 py-1.5 text-sm text-text">
@@ -130,48 +148,10 @@ export default function Schedule() {
         {slots.data && <SlotList slots={slots.data} action={isLead ? (o) => <Button onClick={() => propose(o)}>Propose meeting</Button> : undefined} />}
       </section>
 
-      <aside aria-labelledby="meetings-heading" className="rounded-[18px] bg-raised p-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-        <h2 id="meetings-heading" className="mb-4 text-xl font-semibold tracking-[-0.01em]">Meetings</h2>
-        {meetings.error && <Notice>{meetings.error}</Notice>}
-        {!meetings.data && !meetings.error && <Skeleton rows={2} />}
-        {meetings.data?.length === 0 && <Empty title="No meetings yet">{isLead ? "Pick a time and propose one." : "Proposed meetings show up here for you to RSVP."}</Empty>}
-        <div className="space-y-6">
-          {byDay.map(([day, list]) => (
-            <section key={day}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{day}</h3>
-              <ul className="space-y-4">
-                {list.map((m) => (
-                  <li key={m.id} className="flex gap-3">
-                    <time dateTime={m.start_at} className="w-16 shrink-0 pt-4 text-sm font-semibold tabular-nums">{fmtTime(m.start_at, me.timezone)}</time>
-                    <div className={`min-w-0 flex-1 border-l-[3px] pl-3 ${m.status === "confirmed" ? "border-accent" : "border-accent-3"}`}>
-                      <p className="text-xs font-medium capitalize text-muted">{m.status} meeting</p>
-                      <p className="font-medium leading-snug">{m.title}</p>
-                      <p className="mt-0.5 text-xs text-muted tabular-nums">
-                        <span className="sr-only">{fmtRange(m.start_at, m.end_at, me.timezone)}. </span>
-                        Until {fmtTime(m.end_at, me.timezone)} · {m.yes} going, {m.maybe} maybe, {m.no} can&apos;t
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={`RSVP for ${m.title}`}>
-                        {(["yes", "maybe", "no"] as const).map((r) => (
-                          <Button key={r} variant={m.my_response === r ? "primary" : "secondary"} aria-pressed={m.my_response === r}
-                            className="min-h-9! px-3! text-xs"
-                            onClick={() => post(`/meetings/${m.id}/rsvp`, { response: r }).then(meetings.reload)}>
-                            {{ yes: "Going", maybe: "Maybe", no: "Can't" }[r]}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      </aside>
-
-      <section className="min-w-0 lg:col-start-1">
+      <section className="min-w-0">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-xl font-semibold tracking-[-0.01em]">Your weekly availability</h2>
+            <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Your weekly availability</h2>
             <p className="text-sm text-muted">Tap or drag over the times you&apos;re usually free. Calendar busy time is removed automatically.</p>
           </div>
           <Button variant="primary" onClick={save} busy={saving} disabled={!dirty}>Save availability</Button>
@@ -202,7 +182,6 @@ export default function Schedule() {
           </Card>
         )}
       </section>
-      </div>
-    </>
+    </Page>
   );
 }
