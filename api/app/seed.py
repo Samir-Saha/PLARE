@@ -98,3 +98,76 @@ def seed_demo() -> bool:
 
 if __name__ == "__main__":
     print("Seeded demo group." if seed_demo() else "Demo group already exists.")
+
+
+# --- Accountability log demo entries (appended) ---------------------------------------------
+
+def seed_demo_log() -> int:
+    """Add about a week of fictional log entries to the demo group, once. Returns how many were added."""
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    from .logbook import add_entry, local_time
+    from .models import LogEntry, Notification
+
+    et = ZoneInfo("America/New_York")
+    with SessionLocal() as db:
+        org = db.scalar(select(Organization).where(Organization.is_demo.is_(True)))
+        if org is None or db.scalar(select(LogEntry).where(LogEntry.org_id == org.id).limit(1)):
+            return 0
+        users = {u.name: u for u in db.scalars(select(User).join(Membership).where(Membership.org_id == org.id))}
+
+        def at(days_ago: int, hh: int, mm: int):
+            day = now().astimezone(et).date() - timedelta(days=days_ago)
+            return datetime.combine(day, time(hh, mm), tzinfo=et)
+
+        def overdue_key(name: str) -> str | None:
+            a = db.scalar(select(Assignment).join(Task).where(
+                Assignment.org_id == org.id, Assignment.user_id == users[name].id, Task.title == "Interview a brother"))
+            return a if a and a.status not in (TaskStatus.submitted, TaskStatus.approved) else None
+
+        rowan = users["Rowan Ellis"].id
+        # (pledge, kind, detail, when, created_by, source_key)
+        specs = [
+            ("Devon Park", "late_gm", "GM message sent 9:14 AM (due 9:00 AM).", at(6, 9, 14), None, "demo:gm:1"),
+            ("Devon Park", "late_bp", "BP post went up 12:07 PM (due 11:59 AM).", at(4, 12, 7), None, "demo:bp:1"),
+            ("Imani Cole", "wrong_code", "GM message used code 4417. That day's code was 4471.", at(5, 8, 52), None, "demo:gm:2"),
+            ("Imani Cole", "study_short", "7h 10m logged last week, short of the 10-hour goal.", at(3, 0, 5), None, "demo:study:1"),
+            ("Noah Brandt", "late_gm", "GM message sent 9:31 AM (due 9:00 AM).", at(2, 9, 31), None, "demo:gm:3"),
+            ("Noah Brandt", "other", "Missed coffee chat with Gokul.", at(3, 20, 15), rowan, None),
+            ("Hugo Martins", "late_bp", "BP post went up 12:22 PM (due 11:59 AM).", at(1, 12, 22), None, "demo:bp:2"),
+            ("Hugo Martins", "other", "Not at chapter setup by 7:00 PM.", at(5, 19, 40), rowan, None),
+            ("Grace Kim", "other", "Didn't bring the signed interview sheet to the pledge meeting.", at(2, 21, 5), rowan, None),
+            ("Camila Reyes", "study_short", "8h 25m logged last week, short of the 10-hour goal.", at(3, 0, 5), None, "demo:study:2"),
+        ]
+        for name in ("Devon Park", "Noah Brandt"):
+            a = overdue_key(name)
+            if a:  # same key and wording the automatic overdue sync uses, so it never duplicates these
+                specs.append((name, "overdue_task", f"{a.task.title} was due {local_time(a.task.due_at)}", at(0, 0, 10), None, f"overdue:{a.id}"))
+
+        added = 0
+        for name, kind, detail, when, by, key in specs:
+            entry = add_entry(db, org.id, users[name].id, kind, detail, created_by=by, source_key=key)
+            entry.created_at = when
+            added += 1
+        db.flush()
+        # Backdate the matching notifications so the demo inbox reads naturally.
+        for n in db.scalars(select(Notification).where(Notification.org_id == org.id, Notification.category == "log")):
+            match = next((s for s in specs if users[s[0]].id == n.user_id and s[2] == n.body), None)
+            if match:
+                n.created_at = match[3]
+        db.commit()
+        return added
+
+
+_seed_demo_core = seed_demo
+
+
+def seed_demo() -> bool:  # noqa: F811 - extends the original so startup also seeds the log
+    created = _seed_demo_core()
+    seed_demo_log()
+    return created
+
+
+if __name__ == "__main__":
+    print(f"Added {seed_demo_log()} demo log entries.")
