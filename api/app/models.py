@@ -228,3 +228,17 @@ class LogEntry(Base):
     source_key: Mapped[str | None] = mapped_column(String(128))
     created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class MemberTitle(Base):
+    """Optional position shown under a person's name in one group (e.g. "NME", "VP of Finance").
+
+    A separate table, not a column on memberships, because the app has no migrations.
+    """
+
+    __tablename__ = "member_titles"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", name="uq_member_title"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(80))
