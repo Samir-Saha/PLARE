@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
-import { api, type Assignment, type Meeting, type Session } from "@/lib/api";
+import { api, type Assignment, type LogEntry, type Meeting, type Session } from "@/lib/api";
+import { LOG_TZ } from "@/lib/log";
 import { fmtDuration, fmtShortDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { ButtonLink, CheckLink, CheckMark, ListRow, Notice, Page, Progress, SectionHeader, Skeleton, useLoad } from "@/components/ui";
+import { ButtonLink, CheckLink, CheckMark, Empty, ListRow, Notice, Page, Progress, SectionHeader, Skeleton, useLoad } from "@/components/ui";
 import { CalendarRail, RailFooterLink, meetingItems, type RailItem } from "./calendar-rail";
 import { TasksSection, type OpenTask } from "./tasks";
 
@@ -19,6 +20,7 @@ export function MemberHome() {
   const open = useLoad(() => api<OpenTask[]>(`/orgs/${org.id}/tasks/open`), [org.id]);
   const meetings = useLoad(() => api<Meeting[]>(`/orgs/${org.id}/meetings`), [org.id]);
   const study = useLoad(() => api<StudyOverview>(`/orgs/${org.id}/study`), [org.id]);
+  const log = useLoad(() => api<LogEntry[]>(`/orgs/${org.id}/log`), [org.id]);
 
   const all = tasks.data ?? [];
   const done = all.filter((t) => t.status === "approved").length;
@@ -100,14 +102,20 @@ export function MemberHome() {
         <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead={false} memberLabel={org.member_label} />
       </div>
 
-      <section aria-labelledby="fry-log">
-        <SectionHeader id="fry-log" title="My fry log" />
-        {/* TODO(fry-log): no fry log data or API yet. Same row styling as the mockup, with an honest empty state instead of made-up entries. */}
-        <ul>
-          <ListRow bar={null} end={<span className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-muted">Soon</span>}>
-            <p className="text-[15px] font-semibold leading-snug">Nothing logged</p>
-            <p className="mt-0.5 text-[13px] text-muted">Late or missed requirements will show up here once the fry log is built.</p>
-          </ListRow>
+      <section aria-labelledby="my-log">
+        <SectionHeader id="my-log" title="My log" href="/app/log" linkLabel={log.data?.length ? `See all ${log.data.length}` : undefined} />
+        {log.error && <Notice>{log.error}</Notice>}
+        {!log.data && !log.error && <Skeleton rows={1} />}
+        {log.data?.length === 0 && <Empty title="Nothing logged. Keep it that way." />}
+        <ul className="space-y-2.5">
+          {log.data?.slice(0, 2).map((e) => (
+            <ListRow key={e.id} bar={null} end={
+              <span className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{e.automatic ? "Auto" : "Added"}</span>
+            }>
+              <p className="text-[15px] font-semibold leading-snug">{e.label}</p>
+              <p className="mt-0.5 truncate text-[13px] text-muted tabular-nums">{fmtShortDay(e.created_at, LOG_TZ)} · {e.detail}</p>
+            </ListRow>
+          ))}
         </ul>
       </section>
     </Page>
