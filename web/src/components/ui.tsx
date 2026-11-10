@@ -1,26 +1,28 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { IconCheck, IconMoon, IconSun } from "./icons";
 
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 font-display font-bold tracking-[-0.02em] ${className}`}>
-      <span aria-hidden className="flex h-[0.9em] items-end gap-[0.12em]">
-        <span className="h-full w-[0.2em] rounded-full bg-accent" />
-        <span className="h-[72%] w-[0.2em] rounded-full bg-accent-2" />
-        <span className="h-[48%] w-[0.2em] rounded-full bg-accent-3" />
+    <span className={`inline-flex items-center gap-2.5 font-display font-bold tracking-[0.01em] text-text ${className}`}>
+      <span aria-hidden className="flex h-[0.95em] items-end gap-[0.14em]">
+        <span className="h-[55%] w-[0.22em] rounded-[2px] bg-accent-3" />
+        <span className="h-[78%] w-[0.22em] rounded-[2px] bg-accent-2" />
+        <span className="h-full w-[0.22em] rounded-[2px] bg-accent" />
       </span>
       PLARE
     </span>
   );
 }
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-accent-fg hover:opacity-90",
   secondary: "bg-accent-soft text-accent hover:bg-accent-3/45",
   ghost: "text-muted hover:bg-raised hover:text-text",
   danger: "border border-line bg-surface text-danger hover:bg-danger-soft",
+  outline: "border border-line bg-surface text-text hover:bg-raised",
 };
 
 export function Button({ variant = "secondary", busy, className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; busy?: boolean }) {
@@ -35,8 +37,17 @@ export function Button({ variant = "secondary", busy, className = "", children, 
   );
 }
 
+/** Link styled as a button, for navigation that looks like an action. */
+export function ButtonLink({ href, variant = "secondary", className = "", children, ...rest }: { href: string; variant?: Variant; className?: string; children: ReactNode; "aria-label"?: string }) {
+  return (
+    <Link href={href} {...rest} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${variants[variant]} ${className}`}>
+      {children}
+    </Link>
+  );
+}
+
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[18px] border border-line bg-surface p-4 sm:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-[18px] border border-line bg-surface p-5 ${className}`}>{children}</section>;
 }
 
 const tones = {
@@ -53,19 +64,47 @@ export function Badge({ tone = "neutral", children }: { tone?: keyof typeof tone
 
 export function PageHeader({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl">{title}</h1>
-        {hint && <p className="mt-1.5 text-sm text-muted tabular-nums">{hint}</p>}
+        <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.01em] sm:text-[32px]">{title}</h1>
+        {hint && <p className="mt-1 text-sm text-muted tabular-nums">{hint}</p>}
       </div>
-      {action}
+      {action && <div className="flex items-center gap-3">{action}</div>}
     </header>
+  );
+}
+
+/** Section heading with an optional underlined link on the right ("See all 12"). */
+export function SectionHeader({ title, href, linkLabel, id, className = "" }: { title: string; href?: string; linkLabel?: string; id?: string; className?: string }) {
+  return (
+    <div className={`mb-3.5 flex items-baseline justify-between gap-3 ${className}`}>
+      <h2 id={id} className="font-display text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+      {href && linkLabel && <Link href={href} className="text-[13px] font-medium text-accent underline underline-offset-2 tabular-nums">{linkLabel}</Link>}
+    </div>
+  );
+}
+
+/**
+ * Page body inside the app frame. `rail` renders a raised column flush with the frame's right
+ * edge on wide screens (the calendar rail in the mockup); on narrower screens it stacks below.
+ */
+export function Page({ children, rail, railLabel, railOnMobile = true }: { children: ReactNode; rail?: ReactNode; railLabel?: string; railOnMobile?: boolean }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col xl:flex-row">
+      <div className="min-w-0 flex-1 px-5 pb-10 pt-8 sm:px-8 md:px-9 md:pt-9">{children}</div>
+      {rail && (
+        <aside aria-label={railLabel}
+          className={`border-t border-line bg-raised px-5 py-8 sm:px-8 xl:w-[280px] xl:shrink-0 xl:rounded-r-[28px] xl:border-t-0 xl:px-6 xl:pt-8 ${railOnMobile ? "" : "hidden xl:block"}`}>
+          {rail}
+        </aside>
+      )}
+    </div>
   );
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-[18px] border border-dashed border-line bg-raised px-4 py-8 text-center">
+    <div className="rounded-[14px] border border-dashed border-line bg-raised px-4 py-8 text-center">
       <p className="font-medium">{title}</p>
       {children && <div className="mx-auto mt-1 max-w-sm text-sm text-muted">{children}</div>}
     </div>
@@ -82,7 +121,7 @@ export function Notice({ tone = "danger", children }: { tone?: "danger" | "ok" |
 
 export function Skeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div aria-busy="true" aria-label="Loading" className="space-y-2">
+    <div aria-busy="true" aria-label="Loading" className="space-y-2.5">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="h-16 animate-pulse rounded-[14px] bg-line/60" />
       ))}
@@ -130,61 +169,65 @@ export function Avatar({ name, className = "size-9 text-xs" }: { name: string; c
   );
 }
 
-/** Overlapping initials for a handful of people, with a "+N" for the rest. */
-export function AvatarStack({ names, max = 4, ring = "ring-surface" }: { names: string[]; max?: number; ring?: string }) {
+/** Overlapping initials: a "+N" chip first, then the most recent few people (as in the mockup). */
+export function AvatarStack({ names, max = 2, ring = "ring-surface" }: { names: string[]; max?: number; ring?: string }) {
   const shown = names.slice(0, max);
   const rest = names.length - shown.length;
+  const chip = `-ml-1.5 grid h-7 min-w-7 place-items-center rounded-full px-1 text-[10px] font-bold tabular-nums ring-2 first:ml-0 ${ring}`;
   return (
     <span role="img" aria-label={`${names.length} ${names.length === 1 ? "person" : "people"}`} className="flex items-center">
-      {shown.map((n, i) => <Avatar key={n + i} name={n} className={`-ml-2 size-7 text-[10px] ring-2 first:ml-0 ${ring}`} />)}
-      {rest > 0 && <span aria-hidden className={`-ml-2 grid size-7 place-items-center rounded-full bg-raised text-[10px] font-semibold text-muted tabular-nums ring-2 ${ring}`}>+{rest}</span>}
+      {rest > 0 && <span aria-hidden className={`${chip} relative z-10 bg-surface text-[9px] text-accent`}>+{rest}</span>}
+      {shown.map((n, i) => (
+        <span key={n + i} aria-hidden className={`${chip} ${i % 2 ? "bg-surface text-accent" : "bg-accent-3 text-accent"}`}>{initials(n)}</span>
+      ))}
     </span>
   );
 }
 
-export function Progress({ value, label, track = "bg-line", fill = "bg-accent" }: { value: number; label: string; track?: string; fill?: string }) {
+export function Progress({ value, label, track = "bg-line", fill = "bg-accent", className = "h-1.5" }: { value: number; label: string; track?: string; fill?: string; className?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
-    <div className={`h-1.5 overflow-hidden rounded-full ${track}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+    <div className={`overflow-hidden rounded-full ${track} ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <div className={`h-full rounded-full transition-[width] ${fill}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-const cardTones = {
+export const cardTones = {
   navy: { box: "bg-accent text-accent-fg", sub: "text-on-accent-muted", track: "bg-on-accent-muted/30", fill: "bg-accent-fg", ring: "ring-accent" },
   mid: { box: "bg-accent-2 text-accent-2-fg", sub: "text-accent-2-fg/85", track: "bg-accent-2-fg/25", fill: "bg-accent-2-fg", ring: "ring-accent-2" },
-  light: { box: "bg-accent-soft text-text", sub: "text-muted", track: "bg-surface", fill: "bg-accent", ring: "ring-accent-soft" },
+  light: { box: "bg-accent-soft text-text", sub: "text-muted", track: "bg-surface/80", fill: "bg-accent", ring: "ring-accent-soft" },
 };
 
-/** Dashboard summary card: title, one-line stat, optional people and progress. */
-export function SummaryCard({ tone, title, stat, pct, people }: { tone: keyof typeof cardTones; title: string; stat: ReactNode; pct?: number; people?: string[] }) {
+/** Dashboard summary card: people + period on top, title, one-line stat, bar, footnote. */
+export function SummaryCard({ tone, title, stat, pct, people, meta, foot }: {
+  tone: keyof typeof cardTones; title: string; stat: ReactNode; pct?: number; people?: string[]; meta?: ReactNode; foot?: ReactNode;
+}) {
   const t = cardTones[tone];
   return (
-    <section className={`flex min-h-40 flex-col rounded-[18px] p-5 ${t.box}`}>
-      {people && people.length > 0 && <div className="mb-4"><AvatarStack names={people} ring={t.ring} /></div>}
-      <h2 className="font-display text-lg font-semibold leading-tight">{title}</h2>
-      <p className={`mt-1 text-sm tabular-nums ${t.sub}`}>{stat}</p>
-      {pct !== undefined && (
-        <div className="mt-auto flex items-center gap-3 pt-5">
-          <div className="flex-1"><Progress value={pct} label={title} track={t.track} fill={t.fill} /></div>
-          <span className="font-display text-sm font-semibold tabular-nums">{Math.round(pct)}%</span>
-        </div>
-      )}
+    <section className={`flex min-h-[196px] flex-col rounded-[18px] px-[22px] pb-5 pt-[22px] ${t.box}`}>
+      <div className="mb-5 flex min-h-7 items-center justify-between gap-2">
+        {people && people.length > 0 ? <AvatarStack names={people} ring={t.ring} /> : <span />}
+        {meta && <span className={`text-xs tabular-nums ${t.sub}`}>{meta}</span>}
+      </div>
+      <h2 className="font-display text-xl font-semibold leading-tight">{title}</h2>
+      <p className={`mt-1 text-[13px] leading-snug tabular-nums ${t.sub}`}>{stat}</p>
+      {pct !== undefined && <div className="mt-auto pt-5"><Progress value={pct} label={title} track={t.track} fill={t.fill} /></div>}
+      {foot && <p className={`mt-3 text-xs tabular-nums ${t.sub}`}>{foot}</p>}
     </section>
   );
 }
 
 export function SummaryRow({ children }: { children: ReactNode }) {
-  return <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
+  return <div className="mb-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
 }
 
-/** One stat in a <dl>: raised tile, big display number, small muted label. */
+/** One stat in a <dl>: raised tile, big display number on top, small muted label below. */
 export function StatTile({ label, value, tone }: { label: string; value: ReactNode; tone?: "danger" }) {
   return (
-    <div className="rounded-[14px] bg-raised p-4">
-      <dt className="text-xs font-medium text-muted">{label}</dt>
-      <dd className={`mt-1 font-display text-3xl font-semibold tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
+    <div className="flex flex-col-reverse justify-end rounded-[14px] bg-raised px-4 py-4">
+      <dt className="mt-1.5 text-xs text-muted">{label}</dt>
+      <dd className={`font-display text-[26px] font-semibold leading-none tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
     </div>
   );
 }
@@ -199,34 +242,63 @@ export function barFor(key: string): Bar {
   return (["navy", "mid", "light"] as const)[h % 3];
 }
 
-/** List row: white, 1px line border, 4px colored bar on the left. Renders an <li>. */
-export function ListRow({ bar = "navy", className = "", children }: { bar?: Bar; className?: string; children: ReactNode }) {
+/**
+ * List row: white, 1px line border, 14px radius, a 3px rounded bar inset on the left, content,
+ * and an optional control on the right (`end`). Renders an <li>. Pass `bar={null}` for no bar.
+ */
+export function ListRow({ bar = "navy", className = "", end, children }: { bar?: Bar | null; className?: string; end?: ReactNode; children: ReactNode }) {
   return (
-    <li className={`relative overflow-hidden rounded-[14px] border border-line bg-surface py-3.5 pl-5 pr-3 sm:pr-4 ${className}`}>
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${bars[bar]}`} />
-      {children}
+    <li className="flex items-center gap-4 rounded-[14px] border border-line bg-surface py-3.5 pl-4 pr-3">
+      {bar && <span aria-hidden className={`my-0.5 w-[3px] shrink-0 self-stretch rounded-full ${bars[bar]}`} />}
+      <div className={`min-w-0 flex-1 ${className}`}>{children}</div>
+      {end}
     </li>
   );
 }
 
-/** Round check control on the right of a list row. Icon-only, so it always takes a label. */
+const circle = "grid size-8 place-items-center rounded-full transition-colors";
+
+/** Round check control on the right of a list row: a 32px circle in a 44px touch target. */
 export function CheckButton({ active, label, children, className = "", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; label: string }) {
   return (
     <button type="button" aria-label={label} title={label} {...rest}
-      className={`grid size-11 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-accent bg-accent text-accent-fg" : "border-line text-muted hover:border-accent hover:text-accent"} ${className}`}>
-      {children ?? <IconCheck />}
+      className={`group grid size-11 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
+      <span className={`${circle} ${active ? "bg-accent text-accent-fg" : "border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent"}`}>
+        {children ?? <IconCheck width={16} height={16} strokeWidth={2.25} />}
+      </span>
     </button>
   );
 }
 
-/** Non-interactive filled check, for finished items. */
+/** Non-interactive filled navy check, for finished items. */
 export function CheckMark({ label }: { label: string }) {
   return (
-    <span role="img" aria-label={label} title={label} className="grid size-11 shrink-0 place-items-center rounded-full bg-ok-soft text-ok">
-      <IconCheck />
+    <span role="img" aria-label={label} title={label} className="grid size-11 shrink-0 place-items-center">
+      <span className={`${circle} bg-accent text-accent-fg`}><IconCheck width={16} height={16} strokeWidth={2.25} /></span>
     </span>
   );
 }
+
+/** Link styled like an empty round check (e.g. "open this in the review queue"). */
+export function CheckLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} aria-label={label} title={label} className="group grid size-11 shrink-0 place-items-center rounded-full">
+      <span className={`${circle} border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent`}>
+        <IconCheck width={16} height={16} strokeWidth={2.25} />
+      </span>
+    </Link>
+  );
+}
+
+/** Shared classes for bordered tables with a raised header. */
+export const table = {
+  wrap: "overflow-x-auto rounded-[14px] border border-line bg-surface",
+  table: "w-full text-sm tabular-nums",
+  head: "bg-raised text-left text-[13px] text-muted",
+  th: "px-4 py-3 font-normal",
+  body: "divide-y divide-line",
+  cell: "px-4 py-3",
+};
 
 /** Shared class for text inputs and selects. */
 export const field = "mt-1 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm font-normal text-text";
