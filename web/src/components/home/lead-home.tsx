@@ -89,7 +89,7 @@ export function LeadHome() {
         </SummaryRow>
       )}
 
-      <div className="mb-9 grid gap-x-7 gap-y-9 lg:grid-cols-2">
+      <div className="mb-9 grid grid-cols-1 gap-x-7 gap-y-9 lg:grid-cols-2">
         <section aria-labelledby="needs-review">
           <SectionHeader id="needs-review" title="Needs review" href="/app/review" linkLabel={queue.data?.length ? `See all ${queue.data.length}` : undefined} />
           {queue.error && <Notice>{queue.error}</Notice>}
