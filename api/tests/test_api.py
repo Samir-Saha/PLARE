@@ -238,3 +238,29 @@ def test_demo_seed_is_usable(client):
     assert len(client.get(f"/orgs/{org}/tasks/mine", headers=h).json()) == 5
     best = client.get(f"/orgs/{org}/best-times?duration=90&days=7", headers=h).json()
     assert best["options"][0]["count"] == 18
+
+
+def test_invite_list_and_revoke(client, world):
+    org, lead, admin = world["org_a"], as_user("lead@t.demo"), as_user("admin@t.demo")
+    code = client.post(f"/orgs/{org}/invites", json={}, headers=lead).json()["code"]
+    admin_code = client.post(f"/orgs/{org}/invites", json={"role": "lead"}, headers=admin).json()["code"]
+    assert client.get(f"/orgs/{org}/invites", headers=as_user("m1@t.demo")).status_code == 403
+    assert client.get(f"/orgs/{org}/invites", headers=as_user("outsider@t.demo")).status_code == 404
+    assert {i["code"] for i in client.get(f"/orgs/{org}/invites", headers=lead).json()} == {code, admin_code}
+    # A lead can't revoke an admin-made lead invite; the admin can.
+    assert client.delete(f"/orgs/{org}/invites/{admin_code}", headers=lead).status_code == 403
+    assert client.delete(f"/orgs/{org}/invites/{code}", headers=lead).status_code == 204
+    assert client.delete(f"/orgs/{org}/invites/{code}", headers=lead).status_code == 404
+    assert [i["code"] for i in client.get(f"/orgs/{org}/invites", headers=lead).json()] == [admin_code]
+    # A revoked link no longer works.
+    assert client.post(f"/invites/{code}/accept", headers=as_user("outsider@t.demo")).status_code == 404
+
+
+def test_update_org_is_admin_only(client, world):
+    org = world["org_a"]
+    assert client.patch(f"/orgs/{org}", json={"name": "New"}, headers=as_user("lead@t.demo")).status_code == 403
+    r = client.patch(f"/orgs/{org}", json={"name": "Intern pod", "kind": "intern_team"}, headers=as_user("admin@t.demo"))
+    assert r.status_code == 200 and r.json()["member_label"] == "Intern"
+    assert client.patch(f"/orgs/{org}", json={"kind": "nope"}, headers=as_user("admin@t.demo")).status_code == 422
+    members = client.get(f"/orgs/{org}/members", headers=as_user("m1@t.demo")).json()
+    assert all("joined_at" in m for m in members)

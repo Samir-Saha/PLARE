@@ -4,7 +4,7 @@ import { api, post, type Meeting, type SlotOption, type Slots } from "@/lib/api"
 import { fmtRange, fmtTime } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import { SlotList } from "@/components/slots";
-import { Button, Card, Notice, Page, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { Button, Card, Dialog, Notice, Page, PageHeader, Skeleton, field, useLoad, useToast } from "@/components/ui";
 import { CalendarRail, meetingItems } from "@/components/home/calendar-rail";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -50,6 +50,11 @@ export default function Schedule() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  const toast = useToast();
+  const [proposing, setProposing] = useState<SlotOption | null>(null);
+  const [meetingTitle, setMeetingTitle] = useState("Group meeting");
+  const [proposeError, setProposeError] = useState("");
+  const [proposeBusy, setProposeBusy] = useState(false);
   const paint = useRef<boolean | null>(null);
   const [duration, setDuration] = useState(60);
   const [version, setVersion] = useState(0);
@@ -89,15 +94,31 @@ export default function Schedule() {
     }
   }
 
-  async function propose(o: SlotOption) {
-    const title = window.prompt("What's the meeting called?", "Group meeting");
-    if (!title?.trim()) return;
-    const end = new Date(new Date(o.start).getTime() + duration * 60000).toISOString();
+  async function propose(e: React.FormEvent) {
+    e.preventDefault();
+    if (!proposing) return;
+    if (!meetingTitle.trim()) return setProposeError("Give the meeting a name.");
+    const end = new Date(new Date(proposing.start).getTime() + duration * 60000).toISOString();
+    setProposeBusy(true);
     try {
-      await post(`/orgs/${org.id}/meetings`, { title: title.trim(), start_at: o.start, end_at: end });
+      await post(`/orgs/${org.id}/meetings`, { title: meetingTitle.trim(), start_at: proposing.start, end_at: end });
       meetings.reload();
-    } catch (e) {
-      setMsg({ tone: "danger", text: e instanceof Error ? e.message : "Couldn't propose the meeting." });
+      toast(`Proposed ${meetingTitle.trim()}. Everyone can RSVP now.`);
+      setProposing(null);
+    } catch (err) {
+      setProposeError(err instanceof Error ? err.message : "Couldn't propose the meeting.");
+    } finally {
+      setProposeBusy(false);
+    }
+  }
+
+  async function rsvp(id: string, response: "yes" | "maybe" | "no") {
+    try {
+      await post(`/meetings/${id}/rsvp`, { response });
+      meetings.reload();
+      toast(response === "yes" ? "You're going" : response === "maybe" ? "Marked as maybe" : "Marked as can't make it");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't save your RSVP.", "danger");
     }
   }
 
@@ -120,8 +141,8 @@ export default function Schedule() {
               <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={`RSVP for ${m.title}`}>
                 {(["yes", "maybe", "no"] as const).map((r) => (
                   <Button key={r} variant={m.my_response === r ? "primary" : "outline"} aria-pressed={m.my_response === r}
-                    className="min-h-8! rounded-lg! px-2.5! text-xs"
-                    onClick={() => post(`/meetings/${m.id}/rsvp`, { response: r }).then(meetings.reload)}>
+                    className="min-h-10! rounded-lg! px-3! text-xs sm:min-h-8! sm:px-2.5!"
+                    onClick={() => rsvp(m.id, r)}>
                     {{ yes: "Going", maybe: "Maybe", no: "Can't" }[r]}
                   </Button>
                 ))}
@@ -145,7 +166,7 @@ export default function Schedule() {
         </div>
         {slots.error && <Notice>{slots.error}</Notice>}
         {!slots.data && !slots.error && <Skeleton />}
-        {slots.data && <SlotList slots={slots.data} action={isLead ? (o) => <Button onClick={() => propose(o)}>Propose meeting</Button> : undefined} />}
+        {slots.data && <SlotList slots={slots.data} action={isLead ? (o) => <Button onClick={() => { setProposing(o); setMeetingTitle("Group meeting"); setProposeError(""); }}>Propose meeting</Button> : undefined} />}
       </section>
 
       <section className="min-w-0">
@@ -182,6 +203,20 @@ export default function Schedule() {
           </Card>
         )}
       </section>
+      <Dialog open={!!proposing} onClose={() => setProposing(null)} title="Propose a meeting"
+        description={proposing ? `${fmtRange(proposing.start, new Date(new Date(proposing.start).getTime() + duration * 60000).toISOString(), me.timezone)} · ${proposing.count}/${proposing.total} free` : undefined}>
+        <form onSubmit={propose} className="space-y-4" noValidate>
+          <label className="block text-sm font-medium">
+            Meeting name
+            <input autoFocus value={meetingTitle} onChange={(e) => { setMeetingTitle(e.target.value); setProposeError(""); }} maxLength={200} aria-invalid={!!proposeError} className={field} />
+          </label>
+          {proposeError && <Notice>{proposeError}</Notice>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setProposing(null)}>Cancel</Button>
+            <Button type="submit" variant="primary" busy={proposeBusy}>Propose meeting</Button>
+          </div>
+        </form>
+      </Dialog>
     </Page>
   );
 }
