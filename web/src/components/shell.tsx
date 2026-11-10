@@ -60,12 +60,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOrgId(id);
   };
 
+  // A new account belongs to no group yet: send it to the Group page to create or join one.
+  // Navigating has to happen in an effect, never during render.
+  const noGroup = !!me && me.orgs.length === 0;
+  useEffect(() => {
+    if (noGroup && pathname !== "/app/group") router.replace("/app/group");
+  }, [noGroup, pathname, router]);
+
   if (error) return <main className="mx-auto max-w-md p-6"><Notice>{error}</Notice><Button className="mt-3" onClick={() => { setError(""); refresh(); }}>Try again</Button></main>;
   if (!me) return <main className="mx-auto max-w-3xl p-6"><Skeleton /></main>;
 
   const org = me.orgs.find((o) => o.id === orgId) ?? me.orgs[0];
   if (!org) {
-    if (pathname !== "/app/group") router.replace("/app/group");
     return (
       <AppContext.Provider value={{ me, org: null as unknown as Org, isLead: false, refresh, selectOrg }}>
         <main className="mx-auto max-w-2xl p-4 sm:p-8">{pathname === "/app/group" ? children : <Skeleton />}</main>
