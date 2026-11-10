@@ -4,7 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode, type SVGProps } from "react";
 import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, Wordmark, useLoad } from "./ui";
-import { IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLogout, IconSun, IconUsers } from "./icons";
+import { IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconSun, IconUsers } from "./icons";
+import type { LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
@@ -58,12 +59,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOrgId(id);
   };
 
+  // A new account belongs to no group yet: send it to the Group page to create or join one.
+  // Navigating has to happen in an effect, never during render.
+  const noGroup = !!me && me.orgs.length === 0;
+  useEffect(() => {
+    if (noGroup && pathname !== "/app/group") router.replace("/app/group");
+  }, [noGroup, pathname, router]);
+
   if (error) return <main className="mx-auto max-w-md p-6"><Notice>{error}</Notice><Button className="mt-3" onClick={() => { setError(""); refresh(); }}>Try again</Button></main>;
   if (!me) return <main className="mx-auto max-w-3xl p-6"><Skeleton /></main>;
 
   const org = me.orgs.find((o) => o.id === orgId) ?? me.orgs[0];
   if (!org) {
-    if (pathname !== "/app/group") router.replace("/app/group");
     return (
       <AppContext.Provider value={{ me, org: null as unknown as Org, isLead: false, refresh, selectOrg }}>
         <main className="mx-auto max-w-2xl p-4 sm:p-8">{pathname === "/app/group" ? children : <Skeleton />}</main>
@@ -88,8 +95,11 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
     ? api<GmInbox>(`/orgs/${org.id}/gm/inbox`).then((r) => r.counts.flagged + r.counts.missing)
     : Promise.resolve(0)), [org.id, isLead, pathname]);
 
-  // TODO(nav): the mockup also lists BP check-in, Points and Fry log. Those features have no pages
-  // or API yet, so they're left out rather than linking to 404s.
+  // Log badge for leads: entries created today (Eastern time), from the log summary.
+  const logToday = useLoad(() => (isLead ? api<LogSummary>(`/orgs/${org.id}/log/summary`).then((r) => r.today) : Promise.resolve(0)), [org.id, isLead, pathname]);
+
+  // TODO(nav): the mockup also lists BP check-in and Points. They have no pages or API yet,
+  // so they're left out rather than linking to 404s.
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
@@ -97,6 +107,7 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
+    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const role = isLead ? org.lead_label : org.member_label;

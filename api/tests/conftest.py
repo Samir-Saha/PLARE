@@ -2,7 +2,8 @@ import os
 import tempfile
 
 _tmp = tempfile.mkdtemp(prefix="plare-test-")
-os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
+# Set TEST_DATABASE_URL to run the suite against Postgres instead of SQLite.
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", f"sqlite:///{_tmp}/test.db")
 os.environ["DEMO_AUTH"] = "true"
 os.environ["UPLOAD_DIR"] = f"{_tmp}/uploads"
 os.environ["SUPABASE_URL"] = ""
