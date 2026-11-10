@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, fileUrl, post, type Progress, type SubmissionRow } from "@/lib/api";
 import { fmtDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { Avatar, Badge, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, useLoad, Page } from "@/components/ui";
+import { Avatar, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, field, useLoad, useToast, Page } from "@/components/ui";
 
 
 export default function Review() {
@@ -72,20 +72,24 @@ export default function Review() {
 }
 
 function Row({ s, tz, onDone }: { s: SubmissionRow; tz: string; onDone: () => void }) {
+  const toast = useToast();
   const [feedback, setFeedback] = useState("");
+  const [revising, setRevising] = useState(false);
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"" | "approved" | "needs_revision">("");
 
   async function decide(decision: "approved" | "needs_revision") {
     if (decision === "needs_revision" && !feedback.trim()) return setError("Say what needs to change before sending it back.");
-    setBusy(true);
+    setBusy(decision);
+    setError("");
     try {
       await post(`/submissions/${s.id}/review`, { decision, feedback });
+      toast(decision === "approved" ? `Approved ${s.user_name}'s ${s.task_title}` : `Sent back to ${s.user_name} with feedback`);
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the review.");
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -101,24 +105,36 @@ function Row({ s, tz, onDone }: { s: SubmissionRow; tz: string; onDone: () => vo
 
   return (
     <ListRow bar={barFor(s.category)}>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-medium">{s.user_name} <span className="font-normal text-muted">submitted</span> {s.task_title}</p>
-            <p className="text-sm text-muted">{s.category} · {fmtDay(s.created_at, tz)}, {fmtTime(s.created_at, tz)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
+          <p className="text-[15px] font-medium leading-snug">{s.user_name} <span className="font-normal text-muted">submitted</span> {s.task_title}</p>
+          <p className="mt-0.5 text-[13px] text-muted">{s.category} · {fmtDay(s.created_at, tz)}, {fmtTime(s.created_at, tz)}</p>
+        </div>
+        {!revising && (
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" className="min-h-9" disabled={!!busy} onClick={() => setRevising(true)}>Request revision</Button>
+            <Button variant="primary" className="min-h-9" busy={busy === "approved"} disabled={!!busy} onClick={() => decide("approved")}>Approve</Button>
           </div>
-          <Badge tone="accent">Pending</Badge>
-        </div>
-        {s.text && <p className="mt-2 whitespace-pre-wrap rounded-xl bg-raised p-3 text-sm">{s.text}</p>}
-        {s.has_file && !image && <Button className="mt-2" onClick={openFile}>View {s.file_type?.startsWith("image/") ? "photo" : "attachment"}</Button>}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {image && <img src={image} alt={`Submission from ${s.user_name}`} className="mt-2 max-h-96 rounded-xl border border-line" />}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Feedback (required to request a revision)" aria-label="Feedback"
-            className="min-h-10 min-w-0 flex-1 basis-56 rounded-xl border border-line bg-surface px-3 text-sm" />
-          <Button variant="primary" busy={busy} onClick={() => decide("approved")}>Approve</Button>
-          <Button disabled={busy} onClick={() => decide("needs_revision")}>Request revision</Button>
-        </div>
-        {error && <div className="mt-2"><Notice>{error}</Notice></div>}
+        )}
+      </div>
+      {s.text && <p className="mt-2.5 whitespace-pre-wrap rounded-xl bg-raised px-3 py-2.5 text-sm">{s.text}</p>}
+      {s.has_file && !image && <Button variant="outline" className="mt-2.5 min-h-9" onClick={openFile}>View {s.file_type?.startsWith("image/") ? "photo" : "attachment"}</Button>}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {image && <img src={image} alt={`Submission from ${s.user_name}`} className="mt-2.5 max-h-96 max-w-full rounded-xl border border-line" />}
+      {revising && (
+        <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); decide("needs_revision"); }}>
+          <label className="block text-sm font-medium">
+            What needs to change?
+            <textarea autoFocus rows={2} value={feedback} onChange={(e) => { setFeedback(e.target.value); setError(""); }}
+              aria-invalid={!!error} className={field} placeholder="Be specific, so they can fix it in one try." />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => { setRevising(false); setError(""); }}>Cancel</Button>
+            <Button type="submit" variant="primary" busy={busy === "needs_revision"}>Send back</Button>
+          </div>
+        </form>
+      )}
+      {error && <div className="mt-2"><Notice>{error}</Notice></div>}
     </ListRow>
   );
 }
