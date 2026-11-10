@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
-import { api, fileUrl, post, type SubmissionRow } from "@/lib/api";
+import { api, fileUrl, post, type Progress, type SubmissionRow } from "@/lib/api";
 import { fmtDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { Avatar, Badge, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, useLoad } from "@/components/ui";
+import { Avatar, Badge, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, useLoad, Page } from "@/components/ui";
 
-type Progress = { total: number; approved: number; pending_review: number; overdue: number; members: { user_id: string; name: string; total: number; approved: number; submitted: number; needs_revision: number; overdue: number }[] };
 
 export default function Review() {
   const { me, org, isLead } = useApp();
@@ -13,14 +12,14 @@ export default function Review() {
   const progress = useLoad(() => (isLead ? api<Progress>(`/orgs/${org.id}/progress`) : Promise.resolve(null)), [org.id, isLead]);
   const reload = () => { queue.reload(); progress.reload(); };
 
-  if (!isLead) return <Empty title="Reviewers only">This page is for {org.lead_label.toLowerCase()}s.</Empty>;
+  if (!isLead) return <Page><Empty title="Reviewers only">This page is for {org.lead_label.toLowerCase()}s.</Empty></Page>;
   const p = progress.data;
 
   return (
-    <>
+    <Page>
       <PageHeader title="Review" hint={`${fmtToday(me.timezone)} · every submission in one queue, oldest first`} />
       {p && (
-        <dl className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <dl className="mb-9 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile label="Assigned" value={p.total} />
           <StatTile label="Approved" value={p.approved} />
           <StatTile label="Waiting on you" value={p.pending_review} />
@@ -28,27 +27,27 @@ export default function Review() {
         </dl>
       )}
 
-      <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Queue</h2>
+      <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Queue</h2>
 
       {queue.error && <Notice>{queue.error}</Notice>}
       {!queue.data && !queue.error && <Skeleton />}
       {queue.data?.length === 0 && <Empty title="You're caught up">New submissions land here the moment they come in.</Empty>}
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {queue.data?.map((s) => <Row key={s.id} s={s} tz={me.timezone} onDone={reload} />)}
       </ul>
 
       {p && p.members.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
+          <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
           <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
             <table className="w-full text-sm tabular-nums">
-              <thead className="bg-raised text-left text-xs text-muted">
+              <thead className="bg-raised text-left text-[13px] text-muted">
                 <tr>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Name</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Approved</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-medium">In review</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Revise</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-medium">Overdue</th>
+                  <th scope="col" className="px-4 py-3 font-normal">Name</th>
+                  <th scope="col" className="px-3 py-3 text-right font-normal">Approved</th>
+                  <th scope="col" className="px-3 py-3 text-right font-normal">In review</th>
+                  <th scope="col" className="px-3 py-3 text-right font-normal">Revise</th>
+                  <th scope="col" className="px-4 py-3 text-right font-normal">Overdue</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -68,7 +67,7 @@ export default function Review() {
           </div>
         </section>
       )}
-    </>
+    </Page>
   );
 }
 
