@@ -71,6 +71,15 @@ Demo sign-in works with no setup. For real accounts:
 
 People sign in with Google, then choose **Connect Google Calendar** on the Study tab. That asks for free/busy access only. **Disconnect** deletes the imported busy times.
 
+## Install on your phone
+
+PLARE is a progressive web app. Once it's deployed over HTTPS:
+
+- **iPhone:** open the site in Safari, tap Share, then **Add to Home Screen**.
+- **Android:** open it in Chrome and tap **Install app**.
+
+It then opens full-screen from its own icon, like a native app.
+
 ## Tests
 
 ```bash
