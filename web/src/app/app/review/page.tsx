@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { api, fileUrl, post, type SubmissionRow } from "@/lib/api";
-import { fmtDay, fmtTime } from "@/lib/format";
+import { fmtDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { Badge, Button, Card, Empty, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { Avatar, Badge, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, useLoad } from "@/components/ui";
 
 type Progress = { total: number; approved: number; pending_review: number; overdue: number; members: { user_id: string; name: string; total: number; approved: number; submitted: number; needs_revision: number; overdue: number }[] };
 
@@ -18,17 +18,17 @@ export default function Review() {
 
   return (
     <>
-      <PageHeader title="Review" hint="Every submission in one queue, oldest first." />
+      <PageHeader title="Review" hint={`${fmtToday(me.timezone)} · every submission in one queue, oldest first`} />
       {p && (
-        <dl className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[["Assigned", p.total], ["Approved", p.approved], ["Waiting on you", p.pending_review], ["Overdue", p.overdue]].map(([k, v]) => (
-            <Card key={k} className="!p-3">
-              <dt className="text-xs text-muted">{k}</dt>
-              <dd className="text-2xl font-semibold tabular-nums">{v}</dd>
-            </Card>
-          ))}
+        <dl className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile label="Assigned" value={p.total} />
+          <StatTile label="Approved" value={p.approved} />
+          <StatTile label="Waiting on you" value={p.pending_review} />
+          <StatTile label="Overdue" value={p.overdue} tone={p.overdue ? "danger" : undefined} />
         </dl>
       )}
+
+      <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Queue</h2>
 
       {queue.error && <Notice>{queue.error}</Notice>}
       {!queue.data && !queue.error && <Skeleton />}
@@ -38,21 +38,29 @@ export default function Review() {
       </ul>
 
       {p && p.members.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold">Progress by {org.member_label.toLowerCase()}</h2>
-          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted">
-                <tr><th className="px-4 py-2 font-medium">Name</th><th className="px-2 font-medium">Approved</th><th className="px-2 font-medium">In review</th><th className="px-2 font-medium">Revise</th><th className="px-2 font-medium">Overdue</th></tr>
+        <section className="mt-10">
+          <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
+          <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
+            <table className="w-full text-sm tabular-nums">
+              <thead className="bg-raised text-left text-xs text-muted">
+                <tr>
+                  <th scope="col" className="px-4 py-2.5 font-medium">Name</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Approved</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">In review</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Revise</th>
+                  <th scope="col" className="px-4 py-2.5 text-right font-medium">Overdue</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {p.members.map((m) => (
                   <tr key={m.user_id}>
-                    <th scope="row" className="px-4 py-2 text-left font-medium">{m.name}</th>
-                    <td className="px-2 tabular-nums">{m.approved}/{m.total}</td>
-                    <td className="px-2 tabular-nums">{m.submitted}</td>
-                    <td className="px-2 tabular-nums">{m.needs_revision}</td>
-                    <td className={`px-2 tabular-nums ${m.overdue ? "font-medium text-danger" : ""}`}>{m.overdue}</td>
+                    <th scope="row" className="px-4 py-2.5 text-left font-medium">
+                      <span className="flex items-center gap-2.5"><Avatar name={m.name} className="size-7 text-[10px]" />{m.name}</span>
+                    </th>
+                    <td className="px-3 text-right">{m.approved}/{m.total}</td>
+                    <td className="px-3 text-right">{m.submitted}</td>
+                    <td className={`px-3 text-right ${m.needs_revision ? "text-warn" : ""}`}>{m.needs_revision}</td>
+                    <td className={`px-4 text-right ${m.overdue ? "font-semibold text-danger" : ""}`}>{m.overdue}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,27 +101,25 @@ function Row({ s, tz, onDone }: { s: SubmissionRow; tz: string; onDone: () => vo
   }
 
   return (
-    <li>
-      <Card>
+    <ListRow bar={barFor(s.category)}>
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <p className="font-medium">{s.user_name} <span className="font-normal text-muted">submitted</span> {s.task_title}</p>
             <p className="text-sm text-muted">{s.category} · {fmtDay(s.created_at, tz)}, {fmtTime(s.created_at, tz)}</p>
           </div>
           <Badge tone="accent">Pending</Badge>
         </div>
-        {s.text && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-raised p-3 text-sm">{s.text}</p>}
+        {s.text && <p className="mt-2 whitespace-pre-wrap rounded-xl bg-raised p-3 text-sm">{s.text}</p>}
         {s.has_file && !image && <Button className="mt-2" onClick={openFile}>View {s.file_type?.startsWith("image/") ? "photo" : "attachment"}</Button>}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {image && <img src={image} alt={`Submission from ${s.user_name}`} className="mt-2 max-h-96 rounded-lg border border-line" />}
+        {image && <img src={image} alt={`Submission from ${s.user_name}`} className="mt-2 max-h-96 rounded-xl border border-line" />}
         <div className="mt-3 flex flex-wrap gap-2">
           <input value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Feedback (required to request a revision)" aria-label="Feedback"
-            className="min-h-10 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm" />
+            className="min-h-10 min-w-0 flex-1 basis-56 rounded-xl border border-line bg-surface px-3 text-sm" />
           <Button variant="primary" busy={busy} onClick={() => decide("approved")}>Approve</Button>
           <Button disabled={busy} onClick={() => decide("needs_revision")}>Request revision</Button>
         </div>
         {error && <div className="mt-2"><Notice>{error}</Notice></div>}
-      </Card>
-    </li>
+    </ListRow>
   );
 }

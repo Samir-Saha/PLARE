@@ -2,40 +2,50 @@
 
 /* Semantic tokens. Components only use these names, never raw colors. */
 :root {
-  --bg: #f7f6f3;
+  --bg: #e9eef5;            /* page behind the app frame */
   --surface: #ffffff;
-  --raised: #fbfaf8;
-  --line: #e6e3dc;
-  --text: #1c1a22;
-  --muted: #65616f;
-  --accent: #5a3fd6;
+  --raised: #f5f8fc;        /* side rails, table headers, stat tiles */
+  --line: #e6ebf2;
+  --text: #0e1b2c;
+  --muted: #5a6577;
+  --accent: #0e2747;        /* navy: primary buttons, active nav, hero card */
   --accent-fg: #ffffff;
-  --accent-soft: #ece8fb;
-  --ok: #17794a;
-  --ok-soft: #e1f3e9;
-  --warn: #8a5a00;
-  --warn-soft: #fbefd3;
-  --danger: #b3261e;
-  --danger-soft: #fbe6e4;
+  --accent-soft: #dce8f7;   /* badges, light card, secondary buttons */
+  --accent-2: #2f5e9e;      /* mid blue card */
+  --accent-2-fg: #ffffff;
+  --accent-3: #9dbce3;      /* light accent bars */
+  --on-accent-muted: #b9cce6; /* secondary text on navy */
+  --ok: #1e7b4f;
+  --ok-soft: #e6f4ec;
+  --warn: #a15c07;
+  --warn-soft: #fcf1de;
+  --danger: #b42318;
+  --danger-soft: #fce8e6;
+  --frame-shadow: 0 1px 2px rgb(14 39 71 / 0.04), 0 24px 64px -24px rgb(14 39 71 / 0.22);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #121117;
-  --surface: #1b1a22;
-  --raised: #22212b;
-  --line: #2f2d3a;
-  --text: #eeecf3;
-  --muted: #a39fb1;
-  --accent: #a591ff;
-  --accent-fg: #15131d;
-  --accent-soft: #2b2645;
-  --ok: #6fd3a0;
-  --ok-soft: #173326;
-  --warn: #f0c060;
-  --warn-soft: #3a2e12;
+  --bg: #0a1424;
+  --surface: #101d33;
+  --raised: #15253f;
+  --line: #22355a;
+  --text: #e6edf7;
+  --muted: #93a3bc;
+  --accent: #9dbce3;
+  --accent-fg: #0e2747;
+  --accent-soft: #1c3358;
+  --accent-2: #2f5e9e;
+  --accent-2-fg: #ffffff;
+  --accent-3: #4f7dba;
+  --on-accent-muted: #2a4570;
+  --ok: #5fd39b;
+  --ok-soft: #12301f;
+  --warn: #f0be5e;
+  --warn-soft: #35290f;
   --danger: #ff8f86;
-  --danger-soft: #40201e;
+  --danger-soft: #3d1c1f;
+  --frame-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 64px -24px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
 
@@ -49,19 +59,29 @@
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-fg: var(--accent-2-fg);
+  --color-accent-3: var(--accent-3);
+  --color-on-accent-muted: var(--on-accent-muted);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --shadow-frame: var(--frame-shadow);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-space-grotesk), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
 }
 
 :focus-visible {
