@@ -34,3 +34,8 @@ export function fmtClock(seconds: number) {
 export function fmtToday(tz: string) {
   return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz }).format(new Date());
 }
+
+/** Short day for rails and lists, e.g. "Tue, Nov 10". */
+export function fmtShortDay(iso: string, tz: string) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz }).format(new Date(iso));
+}

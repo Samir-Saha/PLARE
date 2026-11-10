@@ -5,7 +5,7 @@ import { fmtClock, fmtDay, fmtDuration, fmtTime } from "@/lib/format";
 import { clearGoogleToken, googleToken, signInWithGoogle, supabase } from "@/lib/supabase";
 import { useApp } from "@/components/shell";
 import { SlotList } from "@/components/slots";
-import { Button, Card, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, useLoad } from "@/components/ui";
+import { Button, Card, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, useLoad, Page } from "@/components/ui";
 
 type Overview = { active: Session | null; week_seconds: number; total_seconds: number; history: Session[] };
 type Plan = { has_availability: boolean; timezone: string; blocks: { start: string; end: string; minutes: number }[]; planned_minutes: number; target_minutes: number; shortfall_minutes: number };
@@ -78,21 +78,24 @@ export default function Study() {
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Study hours" hint={overview.data ? `${fmtDuration(overview.data.week_seconds)} in the last 7 days · ${fmtDuration(overview.data.total_seconds)} total` : undefined} />
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
 
       {overview.data && (
         <SummaryRow>
-          <SummaryCard tone="navy" title="Last 7 days" stat={`${fmtDuration(overview.data.week_seconds)} of a ${target} hour goal`}
-            pct={(overview.data.week_seconds / (target * 3600)) * 100} />
+          <SummaryCard tone="navy" title="Last 7 days" meta={`Goal ${target}h`} stat={`${fmtDuration(overview.data.week_seconds)} of a ${target} hour goal`}
+            pct={(overview.data.week_seconds / (target * 3600)) * 100}
+            foot={`${Math.min(100, Math.round((overview.data.week_seconds / (target * 3600)) * 100))}% of goal`} />
           {plan.data?.has_availability ? (
-            <SummaryCard tone="mid" title="Planned this week" stat={`${fmtDuration(plan.data.planned_minutes * 60)} of ${fmtDuration(plan.data.target_minutes * 60)} fits your free time`}
-              pct={plan.data.target_minutes ? (plan.data.planned_minutes / plan.data.target_minutes) * 100 : 0} />
+            <SummaryCard tone="mid" title="Planned this week" meta={`${plan.data.blocks.length} blocks`}
+              stat={`${fmtDuration(plan.data.planned_minutes * 60)} of ${fmtDuration(plan.data.target_minutes * 60)} fits your free time`}
+              pct={plan.data.target_minutes ? (plan.data.planned_minutes / plan.data.target_minutes) * 100 : 0}
+              foot={`${plan.data.target_minutes ? Math.round((plan.data.planned_minutes / plan.data.target_minutes) * 100) : 0}% of goal planned`} />
           ) : (
-            <SummaryCard tone="mid" title="Planned this week" stat="Add availability to get a plan" />
+            <SummaryCard tone="mid" title="Planned this week" meta="No plan yet" stat="Add availability to get a plan" />
           )}
-          <SummaryCard tone="light" title="All time" stat={`${fmtDuration(overview.data.total_seconds)} logged`} />
+          <SummaryCard tone="light" title="All time" meta={`${overview.data.history.length} recent sessions`} stat={`${fmtDuration(overview.data.total_seconds)} logged`} />
         </SummaryRow>
       )}
 
@@ -112,7 +115,7 @@ export default function Study() {
       <section className="mb-10">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold tracking-[-0.01em]">Your best study times this week</h2>
+            <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Your best study times this week</h2>
             <p className="text-sm text-muted">
               {me.calendar_synced_at ? `Built around your Google Calendar (imported ${fmtDay(me.calendar_synced_at, me.timezone)}).` : "Connect Google Calendar and PLARE plans around your classes and commitments."}
             </p>
@@ -154,7 +157,7 @@ export default function Study() {
       </section>
 
       <section className="mb-10">
-        <h2 className="mb-1 text-xl font-semibold tracking-[-0.01em]">Study together</h2>
+        <h2 className="mb-1 font-display text-lg font-semibold tracking-[-0.01em]">Study together</h2>
         <p className="mb-3 text-sm text-muted">Two-hour windows when the most {org.member_label.toLowerCase()}s are free.</p>
         {group.error && <Notice>{group.error}</Notice>}
         {!group.data && !group.error && <Skeleton rows={2} />}
@@ -163,7 +166,7 @@ export default function Study() {
 
       {overview.data && overview.data.history.length > 0 && (
         <section>
-          <h2 className="mb-3 text-xl font-semibold tracking-[-0.01em]">Recent sessions</h2>
+          <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Recent sessions</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {overview.data.history.slice(0, 8).map((s) => (
               <li key={s.id} className="flex justify-between gap-3 px-4 py-3 text-sm tabular-nums">
@@ -174,6 +177,6 @@ export default function Study() {
           </ul>
         </section>
       )}
-    </>
+    </Page>
   );
 }
