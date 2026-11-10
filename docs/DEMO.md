@@ -8,24 +8,24 @@
 
 ## 2. A pledge's day (1.5 minutes): **Enter as a pledge**
 
-- **Summary cards:** what's approved, what's in review, what's left.
+- **Home:** the progress card shows what's approved, what's pending, and what's overdue.
 - **Your plan:** "PLARE scheduled my tasks into my free time before each deadline, earliest deadline first. If something won't fit, it tells me how many minutes I'm short."
 - Open a task, add a note or photo, and click **Send for review**. "Only I and the reviewers can see this."
 
 ## 3. The brother view (1.5 minutes): **Enter as a brother / PM**
 
+- **Dashboard:** the approvals, review-queue, and on-track cards, then **Most behind**.
 - **Review:** "Every submission is in one queue, with who, what, and when." Approve one, then request a revision with feedback. The pledge sees that feedback on the task right away.
-- **Progress table:** everyone's status at a glance, including overdue.
-- **Tasks → Open tasks → Suggest owner:** "It ranks people by spare time before the deadline, meaning their free time minus work they already have." Click **Assign**.
+- **Dashboard → Open tasks anyone can claim → Suggest owner:** "It ranks people by spare time before the deadline, meaning their free time minus work they already have." Click **Assign**.
 
-## 4. Finding a time (1 minute): **Schedule**
+## 4. Finding a time (1 minute): **Calendar**
 
 > "Fifteen people, one meeting. PLARE checks everyone's availability in 15-minute steps."
 
 - Point at **Everyone free 15/15**, then an **Alternative 14/15** with the name of who's missing.
 - Click **Propose meeting**, and RSVPs come back in the app.
 
-## 5. Study hours with a real calendar (1 minute): **Study**
+## 5. Study hours with a real calendar (1 minute): **Study hours**
 
 - Start the timer. "It's based on timestamps, so refreshing the page or closing the phone never loses time."
 - **The live moment:** sign in with your own Google account, then click **Connect Google Calendar**. "It reads only busy times, never event details, and plans my study blocks around my actual classes."
