@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api, type Assignment, type Meeting, type Progress, type Slots, type SubmissionRow } from "@/lib/api";
+import type { LogSummary } from "@/lib/api";
 import { fmtDay, fmtShortDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import {
@@ -21,6 +22,8 @@ export function LeadHome() {
   const progress = useLoad(() => api<Progress>(`/orgs/${org.id}/progress`), [org.id]);
   const meetings = useLoad(() => api<Meeting[]>(`/orgs/${org.id}/meetings`), [org.id]);
   const study = useLoad(() => api<Slots>(`/orgs/${org.id}/study/group-times?duration=120`), [org.id]);
+  const logSummary = useLoad(() => api<LogSummary>(`/orgs/${org.id}/log/summary`), [org.id]);
+  const logCounts = new Map((logSummary.data?.members ?? []).map((r) => [r.user_id, r.count]));
   const [creating, setCreating] = useState(false);
   const [now] = useState(() => Date.now());
 
@@ -105,10 +108,11 @@ export function LeadHome() {
         <section aria-labelledby="today">
           <SectionHeader id="today" title="Today" />
           {p ? (
-            <dl className="mb-3.5 grid grid-cols-3 gap-3">
+            <dl className="mb-3.5 grid grid-cols-2 gap-3">
               <StatTile label="Approved" value={`${p.approved}/${p.total}`} />
               <StatTile label="Overdue" value={p.overdue} tone={p.overdue ? "danger" : undefined} />
               <StatTile label="To review" value={p.pending_review} />
+              <StatTile label="New log entries today" value={logSummary.data?.today ?? "–"} tone={logSummary.data?.today ? "danger" : undefined} />
             </dl>
           ) : <div className="mb-3.5"><Skeleton rows={1} /></div>}
 
@@ -144,6 +148,7 @@ export function LeadHome() {
                   <th scope="col" className={table.th}>In review</th>
                   <th scope="col" className={table.th}>Revise</th>
                   <th scope="col" className={table.th}>Overdue</th>
+                  {logSummary.data && <th scope="col" className={table.th}>Log</th>}
                 </tr>
               </thead>
               <tbody className={table.body}>
@@ -154,6 +159,7 @@ export function LeadHome() {
                     <td className={table.cell}>{m.submitted}</td>
                     <td className={`${table.cell} ${m.needs_revision ? "text-warn" : ""}`}>{m.needs_revision}</td>
                     <td className={`${table.cell} ${m.overdue ? "text-danger" : ""}`}>{m.overdue}</td>
+                    {logSummary.data && <td className={table.cell}><Link href="/app/log" className="underline-offset-2 hover:underline">{logCounts.get(m.user_id) ?? 0}</Link></td>}
                   </tr>
                 ))}
               </tbody>
@@ -162,7 +168,7 @@ export function LeadHome() {
         </section>
       )}
 
-      {hasOwnTasks && <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead memberLabel={org.member_label} />}
+      {hasOwnTasks && <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead memberLabel={org.member_label} onChange={progress.reload} />}
     </Page>
   );
 }

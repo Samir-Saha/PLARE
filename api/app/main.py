@@ -7,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import Base, SessionLocal, engine
-from .routers import gm, orgs, schedule, study, tasks
+from .routers import gm, orgs, planner, schedule, study, tasks
 
-log = logging.getLogger("plare.reminders")
+logger = logging.getLogger("plare.reminders")
 
 
 def _reminders_once() -> None:
@@ -22,7 +22,7 @@ async def _reminder_loop() -> None:
         try:
             await asyncio.to_thread(_reminders_once)
         except Exception:  # keep the loop alive; the next minute retries
-            log.exception("GM reminder run failed")
+            logger.exception("GM reminder run failed")
         await asyncio.sleep(60)
 
 
@@ -48,7 +48,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "X-Demo-User"],
 )
-for r in (orgs.router, tasks.router, schedule.router, study.router, gm.router):
+for r in (orgs.router, tasks.router, schedule.router, study.router, planner.router, gm.router):
     app.include_router(r)
 
 
@@ -75,3 +75,9 @@ def demo_users():
     with SessionLocal() as db:
         rows = db.scalars(select(Membership).join(User).where(User.is_demo.is_(True))).all()
         return [{"email": m.user.email, "name": m.user.name, "role": m.role} for m in rows]
+
+
+# Accountability log (appended so existing router wiring stays untouched).
+from .routers import log as log_routes  # noqa: E402
+
+app.include_router(log_routes.router)

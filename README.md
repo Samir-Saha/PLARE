@@ -23,9 +23,16 @@ PLARE keeps a group's tasks, submissions, and schedules in one place. It was bui
 1. **Availability engine** (`api/app/engine/availability.py`). The search window is cut into 15-minute steps, and each step gets a bitmask of who is free. A meeting that spans N steps can be attended by the AND of those masks. Consecutive start times with the same attendees merge into one option, and options are ranked by attendance, then flexibility, then how soon they are. Someone who hasn't entered availability is never counted as free.
 2. **Study planner** (`api/app/engine/study.py`). Takes one person's free time with calendar busy blocks removed and picks 45 to 120 minute study blocks to hit a weekly goal. It goes round-robin across days so hours spread through the week, caps hours per day, leaves breaks, and reports any shortfall.
 3. **Google Calendar import** (`api/app/routers/schedule.py`). Requests the free/busy scope only. The API stores busy start and end times and nothing else: no event titles, no attendees, and the Google token is used once and never saved.
-4. **Submission and review pipeline** (`api/app/routers/tasks.py`). Uploads are checked by file signature and size, stored under server-generated names, and served only to the submitter and that group's leads through an authenticated endpoint.
+4. **Deadline back-planner and owner suggestions** (`api/app/engine/planner.py`). Each person's open tasks are scheduled into their free time before each due date, earliest deadline first, in 30 to 120 minute blocks with breaks. Anything that can't fit is flagged with the minutes missing. For open tasks, leads see members ranked by spare time before the deadline (free time minus work already assigned) and can assign in one click.
+5. **Submission and review pipeline** (`api/app/routers/tasks.py`). Uploads are checked by file signature and size, stored under server-generated names, and served only to the submitter and that group's leads through an authenticated endpoint.
 
 Authorization is enforced on the server for every route. Roles come from the membership table, never from the client, and a request for another group's data gets a 404.
+
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md): system diagram, the four technical components, data model, and API routes
+- [Demo script](docs/DEMO.md): a 6-minute walkthrough split across the team
+- [Deploying](DEPLOY.md): Render (API), Vercel (web), and Supabase (database), step by step
 
 ## Run it locally
 
@@ -83,7 +90,7 @@ It then opens full-screen from its own icon, like a native app.
 ## Tests
 
 ```bash
-cd api && python -m pytest -q     # 28 tests: engines, permissions, uploads, core flows
+cd api && python -m pytest -q     # 36 tests: engines, permissions, uploads, core flows; also pass on Postgres via TEST_DATABASE_URL
 cd web && npx tsc --noEmit && npx eslint src && npm run build
 ```
 
@@ -106,9 +113,9 @@ web/
 ## Not built yet
 
 - Reminders and push notifications (good-morning messages, BP posts, deadline alarms). In-app notifications are recorded, but nothing is pushed to a phone yet.
-- Recurring tasks, check-in photos during study sessions, and the deadline back-planner.
+- Recurring tasks and check-in photos during study sessions.
 - Cloud file storage. Uploads are saved on the API server's disk, which is fine for a demo and should move to Supabase Storage before real use.
-- Deployment. Nothing is hosted yet.
+- Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
 
 ## Ground rules
 
