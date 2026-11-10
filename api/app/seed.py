@@ -1,46 +1,101 @@
-"""Demo data. Every person here is fictional and every record is flagged is_demo."""
-from datetime import timedelta
+"""Demo data. Real names, but every record here is made up for the presentation.
 
-from sqlalchemy import select
+Only names and roles are real: no phone numbers, real emails, or other personal details.
+Every user and the group are flagged is_demo, and emails are generated as <name>@plare.demo.
+
+Other seeds (BP, GM, points, study, log) should look people up by name or role with
+`demo_people()` / `demo_org()`, never by list position.
+
+    python -m app.seed           # create the demo group if it doesn't exist
+    python -m app.seed --reset   # delete the demo group and its demo users, then reseed
+"""
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, now
-from .models import (Assignment, AvailabilityRule, Membership, Organization, Role, StudySession, Submission,
-                     Task, TaskStatus, User)
+from .models import (Assignment, AvailabilityRule, LogEntry, MemberTitle, Membership, Notification, Organization, Role,
+                     StudySession, Submission, Task, TaskStatus, User)
 
-PLEDGES = ["Avery Lin", "Blake Osei", "Camila Reyes", "Devon Park", "Elena Novak", "Farid Haddad", "Grace Kim",
-           "Hugo Martins", "Imani Cole", "Jonah Weiss", "Kira Tanaka", "Leo Fontaine", "Mina Shah", "Noah Brandt",
-           "Priya Nair"]
-LEADS = ["Rowan Ellis", "Sasha Petrov"]
-ADMIN = "Taylor Quinn"
+ORG_NAME = "KTP Epsilon Class"
+
+# Pledges (role: member), as display names.
+PLEDGES = [
+    "Mohammad Butt", "Samir Saha", "Ryan Purakal", "Riana Sherali", "Anima Shrivastava", "Matt Pinto",
+    "Aarushi Arora", "Kavya Barathy", "Kishor GS", "Darsh Srivastava", "Ayushi Jha", "Anushri Vijayakumar",
+    "Raghav Mehta", "Shraaptesh Lokanda", "Aashwika Gupta",
+]
+
+# Brothers and NMEs (role: admin), with the position shown under their name.
+BROTHERS = [
+    ("Arnav", "NME"),
+    ("Abirami", "NME"),
+    ("Aditi Sreeganesh", "President"),
+    ("Krish Bansal", "Vice President"),
+    ("Abhiram Sajjala", "VP of Engagement"),
+    ("Aditya Velagapudi", "VP of Internal Affairs"),
+    ("Krish Maske", "VP of Technology"),
+    ("Krisha Bhagat", "VP of Marketing"),
+    ("Gokulraj Kumarassamy", "VP of Membership"),
+    ("Aaron Bansal", "VP of Professional Development"),
+    ("Gourika Dhiman", "VP of External Affairs"),
+    ("Gravit Bali", "VP of Finance"),
+]
+
+# Who the sign-in page's three demo buttons enter as (matched by name on the web side too).
+DEMO_LOGINS = {"pledge": "Mohammad Butt", "brother": "Abirami", "admin": "Arnav"}
+
+ET = ZoneInfo("America/New_York")
 
 
 def _email(name: str) -> str:
     return name.lower().replace(" ", ".") + "@plare.demo"
 
 
+def demo_org(db: Session) -> Organization | None:
+    return db.scalar(select(Organization).where(Organization.is_demo.is_(True)))
+
+
+def demo_people(db: Session, org_id: str, role: Role | None = None) -> dict[str, User]:
+    """Demo group members by display name, optionally filtered by role."""
+    q = select(User, Membership.role).join(Membership, Membership.user_id == User.id).where(Membership.org_id == org_id)
+    return {u.name: u for u, r in db.execute(q) if role is None or Role(r) == role}
+
+
 def seed_demo() -> bool:
-    """Create the demo group once. Returns False if it already exists."""
+    """Create the demo group once, then make sure its log is seeded. Returns False if the group already existed."""
+    created = _seed_core()
+    seed_demo_log()
+    return created
+
+
+def _seed_core() -> bool:
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
-        if db.scalar(select(Organization).where(Organization.is_demo.is_(True))):
+        if demo_org(db):
             return False
-        org = Organization(name="KTP Epsilon Class (Demo)", kind="pledge_class", is_demo=True)
+        org = Organization(name=ORG_NAME, kind="pledge_class", is_demo=True)
         db.add(org)
         db.flush()
 
-        def person(name: str, role: Role) -> User:
+        def person(name: str, role: Role, title: str | None = None) -> User:
             u = User(email=_email(name), name=name, is_demo=True)
             db.add(u)
             db.flush()
             db.add(Membership(org_id=org.id, user_id=u.id, role=role))
+            if title:
+                db.add(MemberTitle(org_id=org.id, user_id=u.id, title=title))
             return u
 
-        admin = person(ADMIN, Role.admin)
-        leads = [person(n, Role.lead) for n in LEADS]
+        brothers = [person(n, Role.admin, t) for n, t in BROTHERS]
         pledges = [person(n, Role.member) for n in PLEDGES]
+        by_name = {u.name: u for u in brothers}
+        task_owner, approver, reviser = by_name["Abirami"], by_name["Abirami"], by_name["Arnav"]
 
         # Weekly availability. Everyone shares Tuesday 7:00-9:00 PM; the rest varies per person.
-        for i, u in enumerate(pledges + leads + [admin]):
+        for i, u in enumerate(pledges + brothers):
             rules = [(1, 19 * 60, 21 * 60)]
             for day in range(7):
                 if (i + day) % 3 == 0:
@@ -59,9 +114,11 @@ def seed_demo() -> bool:
             ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", t + timedelta(days=3), "any", "normal"),
             ("Interview a brother", "General Requirements", "Coffee chat notes with one active brother.", t - timedelta(days=1), "text", "low"),
         ]
+        # The (i + n) % 5 rotation gives each pledge at most one revision request and at most one
+        # overdue task, spread across the class rather than piled on anyone.
         for n, (title, cat, desc, due, evidence, prio) in enumerate(specs):
             task = Task(org_id=org.id, title=title, category=cat, description=desc, due_at=due, evidence=evidence,
-                        priority=prio, created_by=leads[0].id, estimate_minutes=30)
+                        priority=prio, created_by=task_owner.id, estimate_minutes=30)
             db.add(task)
             db.flush()
             for i, u in enumerate(pledges):
@@ -72,20 +129,20 @@ def seed_demo() -> bool:
                 if evidence == "none" or k >= 3:
                     continue
                 sub = Submission(assignment_id=a.id, org_id=org.id, user_id=u.id,
-                                 text=f"Demo submission from {u.name}.", created_at=t - timedelta(hours=3 + i))
+                                 text="Demo submission for the presentation.", created_at=t - timedelta(hours=3 + i))
                 db.add(sub)
                 if k == 0:
-                    sub.status, sub.reviewer_id, sub.reviewed_at = "approved", leads[0].id, t - timedelta(hours=1)
+                    sub.status, sub.reviewer_id, sub.reviewed_at = "approved", approver.id, t - timedelta(hours=1)
                     a.status, a.completed_at = TaskStatus.approved, sub.reviewed_at
                 elif k == 1:
                     a.status = TaskStatus.submitted
                 else:
                     sub.status, sub.feedback = "needs_revision", "Add a bit more detail and resubmit."
-                    sub.reviewer_id, sub.reviewed_at = leads[1].id, t - timedelta(hours=2)
+                    sub.reviewer_id, sub.reviewed_at = reviser.id, t - timedelta(hours=2)
                     a.status = TaskStatus.needs_revision
         db.add(Task(org_id=org.id, title="Book a room for game night", category="Events", claimable=True,
                     description="Open task: first to claim it owns it.", due_at=t + timedelta(days=4),
-                    created_by=leads[0].id, estimate_minutes=20))
+                    created_by=task_owner.id, estimate_minutes=20))
 
         for i, u in enumerate(pledges):
             for d in range(1, 4):
@@ -96,78 +153,110 @@ def seed_demo() -> bool:
         return True
 
 
-if __name__ == "__main__":
-    print("Seeded demo group." if seed_demo() else "Demo group already exists.")
+# --- Accountability log demo entries -------------------------------------------------------
+
+# (kind, detail, days ago, hour, minute, manual). Details are mild and never name anyone.
+LOG_SPECS = [
+    ("late_gm", "GM message sent 9:14 AM (due 9:00 AM).", 6, 9, 14, False),
+    ("wrong_code", "GM message used the previous day's code.", 5, 8, 52, False),
+    ("other", "Arrived a few minutes late to the pledge meeting.", 5, 19, 40, True),
+    ("late_bp", "BP post went up 12:07 PM (due 11:59 AM).", 4, 12, 7, False),
+    ("study_short", "9h 10m logged last week, short of the 10-hour goal.", 3, 0, 5, False),
+    ("other", "Left study session early.", 3, 20, 15, True),
+    ("late_gm", "GM message sent 9:21 AM (due 9:00 AM).", 2, 9, 21, False),
+    ("other", "Forgot to RSVP for chapter.", 2, 21, 5, True),
+    ("late_bp", "BP post went up 12:15 PM (due 11:59 AM).", 1, 12, 15, False),
+    ("study_short", "9h 25m logged last week, short of the 10-hour goal.", 3, 0, 5, False),
+]
+MAX_LOG_PER_PLEDGE = 2
 
 
-# --- Accountability log demo entries (appended) ---------------------------------------------
+def _at(days_ago: int, hh: int, mm: int) -> datetime:
+    day = now().astimezone(ET).date() - timedelta(days=days_ago)
+    return datetime.combine(day, time(hh, mm), tzinfo=ET)
+
 
 def seed_demo_log() -> int:
-    """Add about a week of fictional log entries to the demo group, once. Returns how many were added."""
-    from datetime import datetime, time
-    from zoneinfo import ZoneInfo
+    """Seed the demo log once, spread so no pledge ends up with more than two entries in total.
 
-    from .logbook import add_entry, local_time
-    from .models import LogEntry, Notification
+    Counts each pledge's existing negatives first: overdue assignments (which the log's
+    automatic overdue sync will add) and revision requests. Each seeded entry then goes to
+    the pledge with the fewest log entries so far, breaking ties by fewest negatives.
+    """
+    from .logbook import add_entry
 
-    et = ZoneInfo("America/New_York")
     with SessionLocal() as db:
-        org = db.scalar(select(Organization).where(Organization.is_demo.is_(True)))
-        if org is None or db.scalar(select(LogEntry).where(LogEntry.org_id == org.id).limit(1)):
+        org = demo_org(db)
+        if org is None or db.scalar(select(LogEntry.id).where(LogEntry.org_id == org.id).limit(1)):
             return 0
-        users = {u.name: u for u in db.scalars(select(User).join(Membership).where(Membership.org_id == org.id))}
+        pledges = demo_people(db, org.id, Role.member)
+        author = demo_people(db, org.id, Role.admin).get("Abirami")
 
-        def at(days_ago: int, hh: int, mm: int):
-            day = now().astimezone(et).date() - timedelta(days=days_ago)
-            return datetime.combine(day, time(hh, mm), tzinfo=et)
+        assignments = db.scalars(select(Assignment).join(Task).where(Assignment.org_id == org.id, Task.deleted_at.is_(None))).all()
+        overdue = {u.id: 0 for u in pledges.values()}
+        negatives = dict(overdue)
+        for a in assignments:
+            if a.user_id not in overdue:
+                continue
+            late = a.task.due_at is not None and a.task.due_at < now() and a.status not in (TaskStatus.submitted, TaskStatus.approved)
+            overdue[a.user_id] += int(late)
+            negatives[a.user_id] += int(late) + int(a.status == TaskStatus.needs_revision)
+        log_count = dict(overdue)  # projected: the overdue sync logs each of these once
 
-        def overdue_key(name: str) -> str | None:
-            a = db.scalar(select(Assignment).join(Task).where(
-                Assignment.org_id == org.id, Assignment.user_id == users[name].id, Task.title == "Interview a brother"))
-            return a if a and a.status not in (TaskStatus.submitted, TaskStatus.approved) else None
-
-        rowan = users["Rowan Ellis"].id
-        # (pledge, kind, detail, when, created_by, source_key)
-        specs = [
-            ("Devon Park", "late_gm", "GM message sent 9:14 AM (due 9:00 AM).", at(6, 9, 14), None, "demo:gm:1"),
-            ("Devon Park", "late_bp", "BP post went up 12:07 PM (due 11:59 AM).", at(4, 12, 7), None, "demo:bp:1"),
-            ("Imani Cole", "wrong_code", "GM message used code 4417. That day's code was 4471.", at(5, 8, 52), None, "demo:gm:2"),
-            ("Imani Cole", "study_short", "7h 10m logged last week, short of the 10-hour goal.", at(3, 0, 5), None, "demo:study:1"),
-            ("Noah Brandt", "late_gm", "GM message sent 9:31 AM (due 9:00 AM).", at(2, 9, 31), None, "demo:gm:3"),
-            ("Noah Brandt", "other", "Missed coffee chat with Gokul.", at(3, 20, 15), rowan, None),
-            ("Hugo Martins", "late_bp", "BP post went up 12:22 PM (due 11:59 AM).", at(1, 12, 22), None, "demo:bp:2"),
-            ("Hugo Martins", "other", "Not at chapter setup by 7:00 PM.", at(5, 19, 40), rowan, None),
-            ("Grace Kim", "other", "Didn't bring the signed interview sheet to the pledge meeting.", at(2, 21, 5), rowan, None),
-            ("Camila Reyes", "study_short", "8h 25m logged last week, short of the 10-hour goal.", at(3, 0, 5), None, "demo:study:2"),
-        ]
-        for name in ("Devon Park", "Noah Brandt"):
-            a = overdue_key(name)
-            if a:  # same key and wording the automatic overdue sync uses, so it never duplicates these
-                specs.append((name, "overdue_task", f"{a.task.title} was due {local_time(a.task.due_at)}", at(0, 0, 10), None, f"overdue:{a.id}"))
-
-        added = 0
-        for name, kind, detail, when, by, key in specs:
-            entry = add_entry(db, org.id, users[name].id, kind, detail, created_by=by, source_key=key)
-            entry.created_at = when
-            added += 1
+        added = []
+        names = sorted(pledges)  # stable tie-break by name, never by list position
+        for kind, detail, days, hh, mm, manual in LOG_SPECS:
+            pick = min((n for n in names if log_count[pledges[n].id] < MAX_LOG_PER_PLEDGE),
+                       key=lambda n: (log_count[pledges[n].id], negatives[pledges[n].id], n), default=None)
+            if pick is None:
+                break
+            uid_ = pledges[pick].id
+            entry = add_entry(db, org.id, uid_, kind, detail, created_by=author.id if manual and author else None,
+                              source_key=None if manual else f"demo:{kind}:{days}:{hh}{mm}")
+            entry.created_at = _at(days, hh, mm)
+            log_count[uid_] += 1
+            negatives[uid_] += 1
+            added.append((uid_, detail, entry.created_at))
         db.flush()
         # Backdate the matching notifications so the demo inbox reads naturally.
         for n in db.scalars(select(Notification).where(Notification.org_id == org.id, Notification.category == "log")):
-            match = next((s for s in specs if users[s[0]].id == n.user_id and s[2] == n.body), None)
-            if match:
-                n.created_at = match[3]
+            when = next((at for uid_, detail, at in added if uid_ == n.user_id and detail == n.body), None)
+            if when:
+                n.created_at = when
         db.commit()
-        return added
+        return len(added)
 
 
-_seed_demo_core = seed_demo
+# --- Reset ------------------------------------------------------------------------------------
 
-
-def seed_demo() -> bool:  # noqa: F811 - extends the original so startup also seeds the log
-    created = _seed_demo_core()
-    seed_demo_log()
-    return created
+def reset_demo() -> None:
+    """Delete the demo group, its records, and the is_demo users, in every table (including teammates')."""
+    Base.metadata.create_all(engine)
+    with SessionLocal() as db:
+        org_ids = list(db.scalars(select(Organization.id).where(Organization.is_demo.is_(True))))
+        user_ids = list(db.scalars(select(User.id).where(User.is_demo.is_(True))))
+        for table in reversed(Base.metadata.sorted_tables):  # children before parents
+            conds = []
+            if org_ids and "org_id" in table.c:
+                conds.append(table.c.org_id.in_(org_ids))
+            if user_ids:
+                conds += [c.in_(user_ids) for c in table.c if any(fk.column.table.name == "users" for fk in c.foreign_keys)]
+            if table.name == "organizations" and org_ids:
+                conds.append(table.c.id.in_(org_ids))
+            if table.name == "users" and user_ids:
+                conds.append(table.c.id.in_(user_ids))
+            if conds:
+                db.execute(table.delete().where(or_(*conds)))
+        db.commit()
 
 
 if __name__ == "__main__":
-    print(f"Added {seed_demo_log()} demo log entries.")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Seed the PLARE demo group.")
+    parser.add_argument("--reset", action="store_true", help="delete the demo group and demo users first, then reseed")
+    args = parser.parse_args()
+    if args.reset:
+        reset_demo()
+        print("Deleted the demo group and demo users.")
+    print("Seeded demo group." if seed_demo() else "Demo group already exists.")
