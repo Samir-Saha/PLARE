@@ -4,7 +4,7 @@ import { api, post } from "@/lib/api";
 import { useApp } from "@/components/shell";
 import { Avatar, Badge, Button, Card, Notice, PageHeader, Skeleton, useLoad, Page } from "@/components/ui";
 
-type Member = { user_id: string; name: string; role: "admin" | "lead" | "member" };
+type Member = { user_id: string; name: string; role: "admin" | "lead" | "member"; title?: string | null };
 const KINDS = [["pledge_class", "Pledge class"], ["study_group", "Study group"], ["intern_team", "Intern team"], ["project_group", "Class project group"], ["club", "Club"]];
 
 export default function Group() {
@@ -64,7 +64,10 @@ export default function Group() {
               <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
                 <span className="flex min-w-0 items-center gap-3">
                   <Avatar name={m.name} />
-                  <span className="truncate font-medium">{m.name}{m.user_id === me.id && <span className="font-normal text-muted"> (you)</span>}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{m.name}{m.user_id === me.id && <span className="font-normal text-muted"> (you)</span>}</span>
+                    {m.title && <span className="block truncate text-xs text-muted">{m.title}</span>}
+                  </span>
                 </span>
                 <span className="flex items-center gap-2">
                   <Badge tone={m.role === "member" ? "neutral" : "accent"}>{label(m)}</Badge>
