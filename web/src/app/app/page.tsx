@@ -1,9 +1,12 @@
 "use client";
 import { useState } from "react";
 import { api, post, type Assignment } from "@/lib/api";
-import { fmtDue } from "@/lib/format";
+import { fmtDue, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { Badge, Button, Card, Empty, Notice, PageHeader, Skeleton, useLoad } from "@/components/ui";
+import { IconClose } from "@/components/icons";
+import {
+  Badge, Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, field, useLoad, type Bar,
+} from "@/components/ui";
 
 const STATUS: Record<Assignment["status"], { label: string; tone: "neutral" | "accent" | "ok" | "warn" }> = {
   not_started: { label: "Not started", tone: "neutral" },
@@ -12,6 +15,9 @@ const STATUS: Record<Assignment["status"], { label: string; tone: "neutral" | "a
   approved: { label: "Approved", tone: "ok" },
   needs_revision: { label: "Needs revision", tone: "warn" },
 };
+
+// Row bar color follows task priority: high is navy, normal mid blue, low light blue.
+const PRIORITY_BAR: Record<string, Bar> = { high: "navy", normal: "mid", low: "light" };
 
 type OpenTask = { task_id: string; title: string; description: string; due_at: string | null };
 
@@ -31,30 +37,37 @@ export default function Tasks() {
   };
   const overdue = all.filter((t) => t.overdue).length;
   const pct = all.length ? Math.round((groups.done.length / all.length) * 100) : 0;
+  const share = (n: number) => (all.length ? (n / all.length) * 100 : 0);
 
   return (
     <>
       <PageHeader
-        title={`Hey, ${me.name.split(" ")[0]}`}
-        hint={all.length ? `${groups.todo.length} to do, ${overdue} overdue, ${pct}% approved` : undefined}
+        title={`Hello, ${me.name.split(" ")[0]}`}
+        hint={fmtToday(me.timezone)}
         action={isLead && <Button variant="primary" onClick={() => setCreating((v) => !v)}>{creating ? "Close" : "New task"}</Button>}
       />
       {error && <div className="mb-3"><Notice>{error}</Notice></div>}
       {creating && <NewTask orgId={org.id} memberLabel={org.member_label} onDone={() => { setCreating(false); tasks.reload(); open.reload(); }} />}
 
+      {/* TODO(people): summary cards can show an avatar stack, but this page only loads the viewer's own tasks. */}
       {all.length > 0 && (
-        <div className="mb-4 h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Tasks approved">
-          <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
-        </div>
+        <SummaryRow>
+          <SummaryCard tone="navy" title="Approved" stat={`${groups.done.length} of ${all.length} tasks signed off`} pct={pct} />
+          <SummaryCard tone="mid" title="In review" stat={`${groups.review.length} waiting on a reviewer`} pct={share(groups.review.length)} />
+          <SummaryCard tone="light" title="To do" stat={`${groups.todo.length} open, ${overdue} overdue`} pct={share(groups.todo.length)} />
+        </SummaryRow>
       )}
 
-      <div role="tablist" aria-label="Task filter" className="mb-3 flex gap-1">
-        {(["todo", "review", "done"] as const).map((f) => (
-          <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${filter === f ? "bg-accent-soft text-accent" : "text-muted hover:bg-raised"}`}>
-            {{ todo: "To do", review: "In review", done: "Approved" }[f]} ({groups[f].length})
-          </button>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-[-0.01em]">Your tasks</h2>
+        <div role="tablist" aria-label="Task filter" className="flex gap-1 rounded-full bg-raised p-1">
+          {(["todo", "review", "done"] as const).map((f) => (
+            <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+              className={`min-h-9 rounded-full px-3.5 text-sm font-medium tabular-nums transition-colors ${filter === f ? "bg-accent text-accent-fg" : "text-muted hover:text-text"}`}>
+              {{ todo: "To do", review: "In review", done: "Approved" }[f]} ({groups[f].length})
+            </button>
+          ))}
+        </div>
       </div>
 
       {tasks.error && <Notice>{tasks.error}</Notice>}
@@ -70,18 +83,16 @@ export default function Tasks() {
 
       {open.data && open.data.length > 0 && (
         <>
-          <h2 className="mb-2 mt-8 text-sm font-semibold text-muted">Open tasks anyone can claim</h2>
+          <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.01em]">Open tasks anyone can claim</h2>
           <ul className="space-y-2">
             {open.data.map((t) => (
-              <li key={t.task_id}>
-                <Card className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{t.title}</p>
-                    <p className="text-sm text-muted">{t.description || fmtDue(t.due_at, me.timezone)}</p>
-                  </div>
-                  <Button onClick={() => post(`/tasks/${t.task_id}/claim`).then(() => { tasks.reload(); open.reload(); }, (e) => setError(e.message))}>Claim</Button>
-                </Card>
-              </li>
+              <ListRow key={t.task_id} bar="light" className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium">{t.title}</p>
+                  <p className="text-sm text-muted">{t.description || fmtDue(t.due_at, me.timezone)}</p>
+                </div>
+                <Button onClick={() => post(`/tasks/${t.task_id}/claim`).then(() => { tasks.reload(); open.reload(); }, (e) => setError(e.message))}>Claim</Button>
+              </ListRow>
             ))}
           </ul>
         </>
@@ -117,20 +128,24 @@ function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; onChang
   }
 
   return (
-    <li>
-      <Card>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <ListRow bar={PRIORITY_BAR[task.priority] ?? "mid"}>
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium">{task.title}</p>
             <p className={`text-sm ${task.overdue ? "font-medium text-danger" : "text-muted"}`}>
               {task.category} · {fmtDue(task.due_at, tz)}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {task.overdue && <Badge tone="danger">Overdue</Badge>}
+              <Badge tone={s.tone}>{s.label}</Badge>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {task.overdue && <Badge tone="danger">Overdue</Badge>}
-            <Badge tone={s.tone}>{s.label}</Badge>
-            {canSubmit && <Button variant={openForm ? "ghost" : "primary"} onClick={() => setOpenForm((v) => !v)}>{openForm ? "Cancel" : task.status === "needs_revision" ? "Resubmit" : "Submit"}</Button>}
-          </div>
+          {canSubmit ? (
+            <CheckButton active={openForm} onClick={() => setOpenForm((v) => !v)} aria-expanded={openForm}
+              label={openForm ? "Cancel" : `${task.status === "needs_revision" ? "Resubmit" : "Submit"} ${task.title}`}>
+              {openForm ? <IconClose /> : undefined}
+            </CheckButton>
+          ) : task.status === "approved" ? <CheckMark label="Approved" /> : null}
         </div>
         {task.description && <p className="mt-2 text-sm text-muted">{task.description}</p>}
         {task.status === "needs_revision" && task.feedback && <div className="mt-3"><Notice tone="warn">Reviewer: {task.feedback}</Notice></div>}
@@ -140,7 +155,7 @@ function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; onChang
               <label className="block text-sm font-medium">
                 Note
                 <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={4000}
-                  className="mt-1 w-full rounded-lg border border-line bg-surface p-2 text-sm font-normal" />
+                  className={field} />
               </label>
             )}
             {task.evidence !== "text" && (
@@ -155,8 +170,7 @@ function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; onChang
             <Button variant="primary" type="submit" busy={busy}>Send for review</Button>
           </form>
         )}
-      </Card>
-    </li>
+    </ListRow>
   );
 }
 
@@ -165,7 +179,6 @@ function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: s
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
-  const field = "mt-1 w-full rounded-lg border border-line bg-surface px-2 py-2 text-sm font-normal";
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -184,7 +197,7 @@ function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: s
   }
 
   return (
-    <Card className="mb-5">
+    <Card className="mb-8">
       <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium sm:col-span-2">Title<input required maxLength={200} value={form.title} onChange={set("title")} className={field} /></label>
         <label className="text-sm font-medium sm:col-span-2">Details<textarea rows={2} value={form.description} onChange={set("description")} className={field} /></label>
