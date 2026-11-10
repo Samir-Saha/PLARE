@@ -7,6 +7,7 @@ os.environ["DEMO_AUTH"] = "true"
 os.environ["UPLOAD_DIR"] = f"{_tmp}/uploads"
 os.environ["SUPABASE_URL"] = ""
 os.environ["SUPABASE_JWT_SECRET"] = ""
+os.environ["RUN_REMINDERS"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

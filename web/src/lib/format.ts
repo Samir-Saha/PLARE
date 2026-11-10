@@ -39,3 +39,19 @@ export function fmtToday(tz: string) {
 export function fmtShortDay(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz }).format(new Date(iso));
 }
+
+/** Minutes after midnight as a clock time, e.g. 360 -> "6:00 AM". */
+export function fmtMinute(minute: number) {
+  const h = Math.floor(minute / 60) % 24;
+  return `${h % 12 || 12}:${String(minute % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** A YYYY-MM-DD day label, e.g. "Tuesday, Nov 10". Parsed at noon UTC so no timezone shifts the date. */
+export function fmtDate(day: string) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
+}
+
+/** Whole minutes between two instants, for "late by 12 min". */
+export function minutesBetween(from: string, to: string) {
+  return Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 6e4));
+}

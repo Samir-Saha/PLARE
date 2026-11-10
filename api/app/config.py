@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     upload_dir: str = "./uploads"
     max_upload_bytes: int = 8 * 1024 * 1024
+    # Run the reminder loop inside the API process (checks once a minute).
+    run_reminders: bool = True
 
 
 @lru_cache

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.db import SessionLocal, now
 from app.models import StudySession
@@ -235,6 +235,14 @@ def test_demo_seed_is_usable(client):
     assert len(users) == 18
     h = as_user("avery.lin@plare.demo")
     org = client.get("/me", headers=h).json()["orgs"][0]["id"]
-    assert len(client.get(f"/orgs/{org}/tasks/mine", headers=h).json()) == 5
+    assert len(client.get(f"/orgs/{org}/tasks/mine", headers=h).json()) == 4
+    # GM messages: yesterday's inbox has flags; today's code word is set and pledges can send.
+    lead = as_user("rowan.ellis@plare.demo")
+    today = client.get(f"/orgs/{org}/gm/inbox", headers=lead).json()
+    assert today["code"] == "lantern"
+    yesterday = (date.fromisoformat(today["day"]) - timedelta(days=1)).isoformat()
+    past = client.get(f"/orgs/{org}/gm/inbox?day={yesterday}", headers=lead).json()
+    assert past["counts"]["flagged"] > 0 and past["counts"]["missing"] > 0 and past["counts"]["on_time"] > 0
+    assert client.post(f"/orgs/{org}/gm", json={"goal": "Study", "code": "lantern"}, headers=h).status_code == 201
     best = client.get(f"/orgs/{org}/best-times?duration=90&days=7", headers=h).json()
     assert best["options"][0]["count"] == 18
