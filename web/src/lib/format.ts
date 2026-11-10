@@ -29,3 +29,8 @@ export function fmtClock(seconds: number) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(Math.floor(seconds / 3600))}:${p(Math.floor((seconds % 3600) / 60))}:${p(seconds % 60)}`;
 }
+
+/** Today's date for page headers, e.g. "Tuesday, November 10". */
+export function fmtToday(tz: string) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz }).format(new Date());
+}
