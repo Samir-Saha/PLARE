@@ -5,6 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError, signOut, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, Wordmark, useLoad } from "./ui";
 import { IconBook, IconCalendar, IconCheck, IconGrid, IconHome, IconLogout, IconUsers } from "./icons";
+import { IconLog } from "./icons";
+import type { LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
@@ -83,14 +85,17 @@ function Frame({ me, org, selectOrg, onSignOut, children }: { me: Me; org: Org; 
   // Review badge: size of the existing review queue, refreshed on navigation so it drops after reviewing.
   const pending = useLoad(() => (isLead ? api<SubmissionRow[]>(`/orgs/${org.id}/review`).then((r) => r.length) : Promise.resolve(0)), [org.id, isLead, pathname]);
 
-  // TODO(nav): the mockup also lists BP check-in, GM messages, Points and Fry log (with an alert
-  // count). Those features have no pages or API yet, so they're left out rather than linking to 404s.
+  // TODO(nav): the mockup also lists BP check-in, GM messages and Points. Only those remain;
+  // they have no pages or API yet, so they're left out rather than linking to 404s.
+  // Log badge for leads: entries created today (Eastern time), from the log summary.
+  const logToday = useLoad(() => (isLead ? api<LogSummary>(`/orgs/${org.id}/log/summary`).then((r) => r.today) : Promise.resolve(0)), [org.id, isLead, pathname]);
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
+    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const role = isLead ? org.lead_label : org.member_label;
