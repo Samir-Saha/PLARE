@@ -28,6 +28,12 @@ PLARE keeps a group's tasks, submissions, and schedules in one place. It was bui
 
 Authorization is enforced on the server for every route. Roles come from the membership table, never from the client, and a request for another group's data gets a 404.
 
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md): system diagram, the four technical components, data model, and API routes
+- [Demo script](docs/DEMO.md): a 6-minute walkthrough split across the team
+- [Deploying](DEPLOY.md): Render (API), Vercel (web), and Supabase (database), step by step
+
 ## Run it locally
 
 You need Python 3.11+ and Node 20+.
@@ -84,7 +90,7 @@ It then opens full-screen from its own icon, like a native app.
 ## Tests
 
 ```bash
-cd api && python -m pytest -q     # 35 tests: engines, permissions, uploads, core flows
+cd api && python -m pytest -q     # 36 tests: engines, permissions, uploads, core flows; also pass on Postgres via TEST_DATABASE_URL
 cd web && npx tsc --noEmit && npx eslint src && npm run build
 ```
 
@@ -109,7 +115,7 @@ web/
 - Reminders and push notifications (good-morning messages, BP posts, deadline alarms). In-app notifications are recorded, but nothing is pushed to a phone yet.
 - Recurring tasks and check-in photos during study sessions.
 - Cloud file storage. Uploads are saved on the API server's disk, which is fine for a demo and should move to Supabase Storage before real use.
-- Deployment. Nothing is hosted yet.
+- Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
 
 ## Ground rules
 

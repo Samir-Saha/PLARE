@@ -44,8 +44,20 @@ class Base(DeclarativeBase):
     pass
 
 
-_url = get_settings().database_url
-engine = create_engine(_url, connect_args={"check_same_thread": False} if _url.startswith("sqlite") else {})
+def normalize_url(url: str) -> str:
+    """Accept the plain postgres:// URL Supabase shows and use the psycopg 3 driver."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
+_url = normalize_url(get_settings().database_url)
+engine = create_engine(
+    _url,
+    connect_args={"check_same_thread": False} if _url.startswith("sqlite") else {},
+    pool_pre_ping=not _url.startswith("sqlite"),  # survive idle connections the pooler closed
+)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
