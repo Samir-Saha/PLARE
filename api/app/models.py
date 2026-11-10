@@ -205,3 +205,26 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64))
     detail: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class LogEntry(Base):
+    """One recorded fact about a pledge's requirement: late, missed, or short.
+
+    Facts only. Nothing here or in the UI attaches a penalty or consequence.
+    `source_key` (unique per org) lets automatic producers re-run without duplicating entries.
+    """
+
+    __tablename__ = "log_entries"
+    __table_args__ = (
+        UniqueConstraint("org_id", "source_key", name="uq_log_org_source"),
+        Index("ix_log_org_user_created", "org_id", "user_id", "created_at"),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))  # the pledge
+    kind: Mapped[str] = mapped_column(String(32))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    automatic: Mapped[bool] = mapped_column(Boolean, default=False)
+    source_key: Mapped[str | None] = mapped_column(String(128))
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
