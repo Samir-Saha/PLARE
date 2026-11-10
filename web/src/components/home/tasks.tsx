@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, post, type Assignment } from "@/lib/api";
 import { fmtDue } from "@/lib/format";
 import { IconClose } from "@/components/icons";
-import { Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, Skeleton, field, type Bar } from "@/components/ui";
+import { Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, Skeleton, field, useToast, type Bar } from "@/components/ui";
 import { SuggestOwner } from "@/components/plan";
 
 const STATUS: Record<Assignment["status"], { label: string }> = {
@@ -80,6 +80,8 @@ export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Yo
 /** An open task anyone can claim. Leads can also see who has the most spare time for it and assign it. */
 function OpenTaskRow({ task, tz, isLead, onChange, onError }: { task: OpenTask; tz: string; isLead: boolean; onChange: () => void; onError: (m: string) => void }) {
   const [suggesting, setSuggesting] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const toast = useToast();
   return (
     <ListRow bar="light">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -93,7 +95,11 @@ function OpenTaskRow({ task, tz, isLead, onChange, onError }: { task: OpenTask; 
               {suggesting ? "Hide" : "Suggest owner"}
             </Button>
           )}
-          <Button onClick={() => post(`/tasks/${task.task_id}/claim`).then(onChange, (e) => onError(e.message))}>Claim</Button>
+          <Button busy={claiming} onClick={async () => {
+            setClaiming(true);
+            try { await post(`/tasks/${task.task_id}/claim`); toast(`Claimed ${task.title}`); onChange(); }
+            catch (e) { onError(e instanceof Error ? e.message : "Couldn't claim it."); setClaiming(false); }
+          }}>Claim</Button>
         </div>
       </div>
       {suggesting && <SuggestOwner taskId={task.task_id} onAssigned={onChange} />}
@@ -109,9 +115,15 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
   const [error, setError] = useState("");
   const canSubmit = task.evidence !== "none" && ["not_started", "in_progress", "needs_revision"].includes(task.status);
   const s = STATUS[task.status];
+  const toast = useToast();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Check on the device first so people don't wait on an upload that will be rejected.
+    if (task.evidence === "photo" && !file) return setError("Add a photo before sending.");
+    if (task.evidence === "text" && !text.trim()) return setError("Write a note before sending.");
+    if (task.evidence === "any" && !text.trim() && !file) return setError("Add a note or attach a file.");
+    if (file && file.size > 8 * 1024 * 1024) return setError("That file is over 8 MB. Pick a smaller one.");
     setBusy(true);
     setError("");
     const body = new FormData();
@@ -119,6 +131,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
     if (file) body.set("file", file);
     try {
       await api(`/assignments/${task.id}/submissions`, { method: "POST", body });
+      toast(`Sent ${task.title} for review`);
       onChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't submit.");
