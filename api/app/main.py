@@ -52,3 +52,9 @@ def demo_users():
     with SessionLocal() as db:
         rows = db.scalars(select(Membership).join(User).where(User.is_demo.is_(True))).all()
         return [{"email": m.user.email, "name": m.user.name, "role": m.role} for m in rows]
+
+
+# Accountability log (appended so existing router wiring stays untouched).
+from .routers import log as log_routes  # noqa: E402
+
+app.include_router(log_routes.router)
