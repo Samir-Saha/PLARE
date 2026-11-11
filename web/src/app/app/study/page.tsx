@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { api, post, type Session, type Slots } from "@/lib/api";
+import { api, post, type Session, type Slots, type StudyRoom } from "@/lib/api";
 import { fmtClock, fmtDay, fmtDuration, fmtTime } from "@/lib/format";
 import { clearGoogleToken, googleToken, signInWithGoogle, supabase } from "@/lib/supabase";
 import { useApp } from "@/components/shell";
 import { SlotList } from "@/components/slots";
-import { Button, Card, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, useLoad, Page } from "@/components/ui";
+import { Button, ButtonLink, Card, Empty, ListRow, Notice, PageHeader, Skeleton, SummaryCard, SummaryRow, useLoad, Page } from "@/components/ui";
 
 type Overview = { active: Session | null; week_seconds: number; total_seconds: number; history: Session[] };
 type Plan = { has_availability: boolean; timezone: string; blocks: { start: string; end: string; minutes: number }[]; planned_minutes: number; target_minutes: number; shortfall_minutes: number };
@@ -17,6 +17,7 @@ export default function Study() {
   const overview = useLoad(() => api<Overview>(`/orgs/${org.id}/study`), [org.id]);
   const plan = useLoad(() => api<Plan>(`/orgs/${org.id}/study/plan?target_hours=${target}`), [org.id, target, version]);
   const group = useLoad(() => api<Slots>(`/orgs/${org.id}/study/group-times?duration=120`), [org.id, version]);
+  const room = useLoad(() => api<{ session: StudyRoom | null }>(`/orgs/${org.id}/group-study/room?watch=false`), [org.id]);
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [nowMs, setNowMs] = useState(0);
@@ -110,6 +111,18 @@ export default function Study() {
           {active?.state === "paused" && <Button variant="primary" onClick={() => act("resume")}>Resume</Button>}
           {active && <Button variant="danger" onClick={() => act("end")}>End session</Button>}
         </div>
+      </Card>
+
+      <Card className="mb-10 flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Group study room</h2>
+          <p className="text-sm text-muted">
+            {room.data?.session
+              ? `${room.data.session.title} is live: ${room.data.session.people.filter((p) => p.studying).length} studying, ${room.data.session.quorum} check-ins needed each hour.`
+              : "Study together with random hourly photo check-ins. An hour counts when enough people check in."}
+          </p>
+        </div>
+        <ButtonLink href="/app/study/room" variant={room.data?.session ? "primary" : "secondary"}>{room.data?.session ? "Open the room" : "Go to the room"}</ButtonLink>
       </Card>
 
       <section className="mb-10">

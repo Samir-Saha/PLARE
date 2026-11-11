@@ -317,3 +317,114 @@ class CoffeeChatCompletion(Base):
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     completed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class Excuse(Base):
+    """A pledge's request to be excused from a requirement on one or more days.
+
+    Days are YYYY-MM-DD in the group's local timezone. Only an approved excuse counts;
+    other features check it with `app.excuses.is_excused` before flagging someone.
+    """
+
+    __tablename__ = "excuses"
+    __table_args__ = (Index("ix_excuse_org_user", "org_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(16))    # see excuses.KINDS
+    start_day: Mapped[str] = mapped_column(String(10))
+    end_day: Mapped[str] = mapped_column(String(10))
+    reason: Mapped[str] = mapped_column(String(16))  # see excuses.REASONS
+    note: Mapped[str] = mapped_column(Text, default="")
+    file_path: Mapped[str | None] = mapped_column(String(255))  # private storage key, never a public URL
+    file_type: Mapped[str | None] = mapped_column(String(64))
+    late: Mapped[bool] = mapped_column(Boolean, default=False)  # requested after the first day it covers
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | approved | denied
+    reply: Mapped[str] = mapped_column(Text, default="")
+    reviewer_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+
+
+class GroupStudySettings(Base):
+    """Per-group rules for group study sessions. Only leads can change them."""
+
+    __tablename__ = "group_study_settings"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    quorum: Mapped[int] = mapped_column(Integer, default=7)          # confirmations needed for an hour to count
+    window_minutes: Mapped[int] = mapped_column(Integer, default=10)  # how long a check-in ping stays open
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now, onupdate=now)
+
+
+class GroupStudySession(Base):
+    """A shared study room. At most one is running per group at a time.
+
+    `quorum` and `window_minutes` are copied from the group's settings when the
+    session starts, so changing settings mid-session never changes its rules.
+    """
+
+    __tablename__ = "group_study_sessions"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(120), default="Group study")
+    started_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    quorum: Mapped[int] = mapped_column(Integer)
+    window_minutes: Mapped[int] = mapped_column(Integer)
+    starter: Mapped[User] = relationship()
+
+
+class GroupStudyParticipant(Base):
+    """Someone in the room. Members join to study; anyone viewing updates `last_seen_at`."""
+
+    __tablename__ = "group_study_participants"
+    __table_args__ = (UniqueConstraint("session_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("group_study_sessions.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    joined_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # None: only dropped in to watch
+    left_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship()
+
+
+class StudyPing(Base):
+    """The random check-in moment for one hour of a session. Its time stays hidden until it opens."""
+
+    __tablename__ = "study_pings"
+    __table_args__ = (UniqueConstraint("session_id", "hour_index"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("group_study_sessions.id", ondelete="CASCADE"), index=True)
+    hour_index: Mapped[int] = mapped_column(Integer)
+    ping_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    closes_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    notified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class StudyCheckIn(Base):
+    """A member's photo answering a ping. The file is private storage, never a public URL."""
+
+    __tablename__ = "study_checkins"
+    __table_args__ = (UniqueConstraint("ping_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    ping_id: Mapped[str] = mapped_column(ForeignKey("study_pings.id", ondelete="CASCADE"), index=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("group_study_sessions.id", ondelete="CASCADE"), index=True)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    file_path: Mapped[str] = mapped_column(String(255))
+    file_type: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship()
+
+
+class RoomMessage(Base):
+    __tablename__ = "room_messages"
+    __table_args__ = (Index("ix_room_msg_session_created", "session_id", "created_at"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("group_study_sessions.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship()

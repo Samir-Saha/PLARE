@@ -5,8 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, ToastProvider, Wordmark, useLoad } from "./ui";
 import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./workspace";
-import { IconBook, IconCalendar, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconSun, IconUsers } from "./icons";
-import type { LogSummary } from "@/lib/api";
+import { IconBook, IconCalendar, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
+import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
@@ -125,6 +125,9 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
   // Log badge for leads: entries created today (Eastern time), from the log summary.
   const logToday = useLoad(() => (isLead ? api<LogSummary>(`/orgs/${org.id}/log/summary`).then((r) => r.today) : Promise.resolve(0)), [org.id, isLead, pathname]);
 
+  // Excuses badge for leads: requests waiting for a decision.
+  const excusesPending = useLoad(() => (isLead ? api<ExcuseSummary>(`/orgs/${org.id}/excuses/summary`).then((r) => r.pending) : Promise.resolve(0)), [org.id, isLead, pathname]);
+
   // TODO(nav): the mockup also lists BP check-in and Points. They have no pages or API yet,
   // so they're left out rather than linking to 404s.
   const nav: NavItem[] = [
@@ -136,6 +139,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
     { href: "/app/coffee", label: "Coffee chats", icon: IconCoffee, short: "Coffee" },
     { href: "/app/group", label: "Group", icon: IconUsers },
     { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
+    { href: "/app/excuses", label: "Excuses", icon: IconNote, count: excusesPending.data || undefined },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const role = org.title || (org.role === "admin" ? "Admin" : isLead ? org.lead_label : org.member_label);

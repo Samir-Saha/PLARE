@@ -87,3 +87,25 @@ export type CoffeeChat = {
   id: string; first_name: string; last_name: string; due_at: string; done: boolean; completed_at: string | null; overdue: boolean;
   done_count?: number; member_count?: number; // leads only
 };
+export type Excuse = {
+  id: string; user_id: string; user_name: string; kind: string; kind_label: string; start_day: string; end_day: string;
+  reason: string; reason_label: string; note: string; has_file: boolean; file_type: string | null; late: boolean;
+  status: "pending" | "approved" | "denied"; reply: string; reviewer_name: string | null; created_at: string; reviewed_at: string | null;
+};
+export type ExcuseSummary = { pending: number; members: { user_id: string; name: string; pending: number; approved: number; denied: number }[] };
+
+export type HourStatus = "waiting" | "open" | "short" | "on_track" | "counted" | "incomplete";
+export type RoomHour = { index: number; start: string; end: string; status: HourStatus; ping_at: string | null; closes_at: string | null; count: number; confirmed: { user_id: string; name: string; checkin_id: string | null; at: string }[] };
+export type RoomPerson = { user_id: string; name: string; role: "admin" | "lead" | "member"; studying: boolean; here_now: boolean };
+export type RoomMessage = { id: string; user_id: string; name: string; body: string; created_at: string };
+export type StudyRoom = {
+  id: string; title: string; started_at: string; ended_at: string | null; started_by_name: string; quorum: number; window_minutes: number; server_now: string; can_end: boolean;
+  me: { role: "admin" | "lead" | "member"; studying: boolean; can_join: boolean; hours_counted: number };
+  people: RoomPerson[]; hours: RoomHour[]; open_ping: { id: string; hour_index: number; closes_at: string; i_confirmed: boolean } | null; messages: RoomMessage[];
+};
+export type GroupStudySettings = { quorum: number; window_minutes: number; member_count: number; customized: boolean };
+export type GroupStudyHistory = {
+  my_hours: number;
+  sessions: { id: string; title: string; started_at: string; ended_at: string; quorum: number; hours_counted: number; hours_total: number; my_hours: number }[];
+  members: { user_id: string; name: string; hours: number }[] | null;
+};
