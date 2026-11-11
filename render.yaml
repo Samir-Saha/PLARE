@@ -27,6 +27,6 @@ services:
       # Render's free disk is temporary: uploads disappear when the service restarts.
       - key: UPLOAD_DIR
         value: /tmp/plare-uploads
-      # GPTZero API key for the AI-writing check. Leave unset and reviewers see "AI check not set up".
-      - key: GPTZERO_API_KEY
+      # Free Hugging Face token for the AI-writing check. Leave unset and reviewers see "AI check not set up".
+      - key: HF_TOKEN
         sync: false

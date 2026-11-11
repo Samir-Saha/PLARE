@@ -16,7 +16,7 @@ export function AiCheckNote({ check, own }: { check: SubmissionCheck; own?: bool
   const high = check.ai_score >= HIGH;
   return (
     <p className={`mt-2 text-xs ${high ? "text-warn" : "text-muted"}`}>
-      AI check (GPTZero): {pct(check.ai_score)} chance {own ? "your submission" : "this"} is AI-written.
+      AI check: {pct(check.ai_score)} chance {own ? "your submission" : "this"} is AI-written.
       {high && own && " Detectors can be wrong. If you wrote it yourself, tell your reviewer."}
     </p>
   );
@@ -53,7 +53,7 @@ export function ReviewChecks({ s, tz, onChange }: { s: SubmissionRow; tz: string
           : <Badge tone="warn">Not taken with the in-app camera</Badge>)}
         {ai === "pending" && <Badge>Checking for AI writing…</Badge>}
         {ai === "done" && s.ai_score != null && (
-          <Badge tone={high ? "warn" : "neutral"}>GPTZero: {pct(s.ai_score)} chance AI-written</Badge>
+          <Badge tone={high ? "warn" : "neutral"}>AI check: {pct(s.ai_score)} chance AI-written</Badge>
         )}
         {ai === "too_short" && <Badge>Too short to check for AI</Badge>}
         {ai === "not_configured" && <Badge>AI check not set up</Badge>}
@@ -64,7 +64,7 @@ export function ReviewChecks({ s, tz, onChange }: { s: SubmissionRow; tz: string
       </div>
       {high && (
         <p className="text-xs text-muted">
-          AI detectors are often wrong, especially for people writing in a second language. Talk to {s.user_name} before acting on this.
+          AI detectors are often wrong, especially for people writing in a second language, and this free one misses a lot of newer AI writing. Talk to {s.user_name} before acting on this.
         </p>
       )}
       {ai === "error" && s.ai_error && <p className="text-xs text-muted">{s.ai_error}</p>}

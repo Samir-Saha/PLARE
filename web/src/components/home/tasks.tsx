@@ -192,7 +192,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
             <p className="text-xs text-muted">Only you and this group&apos;s reviewers can see what you submit.</p>
             {task.ai_check_on && (
               <p className="text-xs text-muted">
-                Written work, including PDF text, is sent to GPTZero to check for AI writing. You and your reviewers see the score. Detectors can be wrong, so it&apos;s never used on its own.
+                Written work, including PDF text, is checked for AI writing by a free open-source detector on Hugging Face. You and your reviewers see the score. Detectors can be wrong, so it&apos;s never used on its own.
               </p>
             )}
             {error && <Notice>{error}</Notice>}
