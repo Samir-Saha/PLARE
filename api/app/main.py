@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import Base, SessionLocal, engine
-from .routers import gm, group_study, orgs, planner, schedule, study, tasks
+from .routers import gm, group_study, orgs, overview, planner, schedule, study, tasks
 
 logger = logging.getLogger("plare.reminders")
 
@@ -48,7 +48,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "X-Demo-User"],
 )
-for r in (orgs.router, tasks.router, schedule.router, study.router, group_study.router, planner.router, gm.router):
+for r in (orgs.router, tasks.router, schedule.router, study.router, group_study.router, planner.router, gm.router, overview.router):
     app.include_router(r)
 
 
