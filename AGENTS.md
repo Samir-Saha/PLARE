@@ -30,9 +30,9 @@ All of these must pass. Add tests for new backend behavior, especially permissio
 
 1. **Deployment:** the config is done (`render.yaml`, `DEPLOY.md`). What's left is creating the Render and Vercel accounts, which the repo owner has to do.
 2. **Notifications page:** the API already has `GET /notifications` and `POST /notifications/read`. Build the in-app notification center with unread counts and read/unread states.
-3. **More reminders:** Web Push, quiet hours, and the minute scheduler are built (`app/push.py`, `POST /cron/tick`). Still to add: due-soon and overdue task reminders. Create them with `auth.notify` and they're pushed automatically.
-4. **Recurring tasks:** a recurrence rule on a task that creates the next assignment on a schedule.
 5. **Optional study check-in photos:** during a running study session, prompt at a group-configured interval. Camera use always requires the user to press a button.
 6. **Alarm mode (opt-in):** for an important deadline, repeat push reminders until the user solves a simple addition problem in the app or dismisses the alarm. The answer is checked on the server.
 
 Done: the deadline back-planner and owner suggestions (`app/engine/planner.py`, `app/routers/planner.py`, `web/src/components/plan.tsx`); Web Push with quiet hours (`app/push.py`, `web/public/sw.js`, `/app/settings`); camera-only photo tasks and the AI-writing check (`app/ai_check.py`, free Hugging Face detector). CI runs in `.github/workflows/ci.yml`.
+
+Task automation is built (`app/task_automation.py`, `app/engine/task_automation.py`, `app/routers/task_templates.py`, `/app/tasks`): deadline reminders and daily/weekly recurring templates. Keep occurrence/reminder claims transactional and unique. Extend the existing minute scheduler rather than adding another worker service. These models use new tables only so existing databases can upgrade through `create_all`.

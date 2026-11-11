@@ -73,6 +73,11 @@ export type SubmissionCheck = {
   ai_score: number | null; ai_label: string | null; ai_error: string; ai_checked_at: string | null;
 };
 export type Assignment = { id: string; title: string; description: string; category: string; priority: string; due_at: string | null; evidence: Evidence; status: "not_started" | "in_progress" | "submitted" | "approved" | "needs_revision"; overdue: boolean; feedback: string; ai_check_on: boolean; check: SubmissionCheck | null };
+export type TaskTemplate = {
+  id: string; title: string; description: string; category: string; priority: string; estimate_minutes: number | null;
+  evidence: Evidence; assign: "all_members" | "open" | "users"; frequency: "daily" | "weekly"; timezone: string;
+  first_due_at: string; next_run_at: string; ends_at: string | null; status: "active" | "paused" | "ended";
+};
 export type SubmissionRow = SubmissionCheck & { id: string; task_title: string; category: string; user_name: string; text: string; has_file: boolean; file_type: string | null; status: string; feedback: string; created_at: string; evidence: Evidence };
 export type SlotOption = { start: string; end: string; count: number; total: number; flexibility_minutes?: number; unavailable: string[] };
 export type Slots = { total: number; timezone: string; no_data: string[]; options: SlotOption[] };

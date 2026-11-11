@@ -205,6 +205,9 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
 
 export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: string; onDone: () => void }) {
   const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members", estimate: "30" });
+  const [repeat, setRepeat] = useState("");
+  const [ends, setEnds] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
@@ -214,9 +217,10 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
     setBusy(true);
     setError("");
     try {
-      await post(`/orgs/${orgId}/tasks`, {
+      await post(`/orgs/${orgId}/${repeat ? "task-templates" : "tasks"}`, {
         title: form.title, description: form.description, category: form.category, evidence: form.evidence,
         assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null, estimate_minutes: Number(form.estimate),
+        ...(repeat ? { frequency: repeat, timezone, ends_at: ends ? new Date(ends).toISOString() : null } : {}),
       });
       onDone();
     } catch (err) {
@@ -237,7 +241,18 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
             {["Good Morning Messages", "BP Posts", "Study Hours", "Meetings", "Events", "General Requirements"].map((c) => <option key={c}>{c}</option>)}
           </select>
         </label>
-        <label className="text-sm font-medium">Due<input type="datetime-local" value={form.due} onChange={set("due")} className={field} /></label>
+        <label className="text-sm font-medium">{repeat ? "First deadline" : "Due"}<input type="datetime-local" required={!!repeat} value={form.due} onChange={set("due")} className={field} /></label>
+        <label className="text-sm font-medium">Repeat
+          <select value={repeat} onChange={(e) => { setRepeat(e.target.value); setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone); }} className={field}>
+            <option value="">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option>
+          </select>
+        </label>
+        {repeat && <>
+          <label className="text-sm font-medium">Final deadline (optional)
+            <input type="datetime-local" min={form.due || undefined} value={ends} onChange={(e) => setEnds(e.target.value)} className={field} />
+          </label>
+          <p className="self-center text-sm text-muted">Deadlines use {timezone}. Repeats keep the same local time. The first task is created now; the next appears after its deadline.</p>
+        </>}
         <label className="text-sm font-medium">Time needed
           <select value={form.estimate} onChange={set("estimate")} className={field}>
             {[["15", "15 min"], ["30", "30 min"], ["60", "1 hour"], ["90", "1.5 hours"], ["120", "2 hours"], ["180", "3 hours"], ["300", "5 hours"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -254,7 +269,7 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
           </select>
         </label>
         {error && <div className="sm:col-span-2"><Notice>{error}</Notice></div>}
-        <div className="sm:col-span-2"><Button variant="primary" type="submit" busy={busy}>Create task</Button></div>
+        <div className="sm:col-span-2"><Button variant="primary" type="submit" busy={busy}>{repeat ? "Create recurring template" : "Create task"}</Button></div>
       </form>
     </Card>
   );
