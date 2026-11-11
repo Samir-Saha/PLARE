@@ -115,7 +115,7 @@ def _seed_core() -> bool:
         t = now()
         # Due dates land on real Eastern clock times (11:59 AM, 9:00 PM, ...), not "now plus N days".
         specs = [
-            ("BP post: week 6", "BP Posts", "Post this week's brother-pledge photo.", _on(2, 11, 59), "photo", "normal"),
+            ("BP post: week 6", "BP Posts", "Take this week's photo in business professional with the in-app camera.", _on(2, 11, 59), "camera", "normal"),
             ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", _on(5, 23, 59), "none", "normal"),
             ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", _on(3, 21, 0), "any", "normal"),
         ]

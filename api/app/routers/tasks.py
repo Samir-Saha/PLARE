@@ -1,16 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import ai_check
 from ..auth import LEADS, audit, current_user, membership, notify
 from ..config import get_settings
 from ..db import get_db, now
-from ..models import Assignment, Membership, Role, Submission, Task, TaskStatus, User, uid
+from ..models import Assignment, CaptureToken, Membership, Role, Submission, SubmissionCheck, Task, TaskStatus, User, uid
 
 router = APIRouter()
 
@@ -21,6 +22,9 @@ SIGNATURES = {
     "application/pdf": (b"%PDF-", ".pdf"),
 }
 
+# A camera-only photo must be sent within this long after "Take photo" was pressed.
+CAPTURE_TTL = timedelta(minutes=10)
+
 
 class TaskIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
@@ -29,7 +33,7 @@ class TaskIn(BaseModel):
     priority: str = Field("normal", pattern="^(low|normal|high)$")
     due_at: datetime | None = None
     estimate_minutes: int | None = Field(None, ge=5, le=6000)
-    evidence: str = Field("any", pattern="^(any|text|photo|none)$")
+    evidence: str = Field("any", pattern="^(any|text|photo|camera|none)$")
     # "all_members", "open" (anyone can claim), or explicit user ids.
     assign: str = Field("all_members", pattern="^(all_members|open|users)$")
     user_ids: list[str] = []
@@ -44,7 +48,12 @@ def _overdue(task: Task, status: str) -> bool:
     return bool(task.due_at and task.due_at < now() and status not in (TaskStatus.submitted, TaskStatus.approved))
 
 
-def _assignment(a: Assignment, latest: Submission | None = None) -> dict:
+def _ai_check_on(evidence: str) -> bool:
+    """Whether written work on this task is sent to the AI check, so the form can say so."""
+    return bool(ai_check.get_settings().hf_token) and evidence in ("any", "text")
+
+
+def _assignment(a: Assignment, latest: Submission | None = None, check: SubmissionCheck | None = None) -> dict:
     t = a.task
     return {
         "id": a.id, "task_id": t.id, "title": t.title, "description": t.description, "category": t.category,
@@ -52,6 +61,9 @@ def _assignment(a: Assignment, latest: Submission | None = None) -> dict:
         "status": a.status, "overdue": _overdue(t, a.status), "completed_at": a.completed_at,
         "user_id": a.user_id, "user_name": a.user.name,
         "feedback": latest.feedback if latest else "",
+        "ai_check_on": _ai_check_on(t.evidence),
+        # The submitter sees their own latest check, the same thing reviewers see.
+        "check": ai_check.as_dict(check) if latest else None,
     }
 
 
@@ -108,7 +120,7 @@ def my_tasks(org_id: str, user: User = Depends(current_user), db: Session = Depe
         latest = db.scalar(
             select(Submission).where(Submission.assignment_id == a.id).order_by(Submission.created_at.desc())
         )
-        out.append(_assignment(a, latest))
+        out.append(_assignment(a, latest, db.get(SubmissionCheck, latest.id) if latest else None))
     far = datetime.max.replace(tzinfo=now().tzinfo)
     return sorted(out, key=lambda x: (x["status"] == TaskStatus.approved, x["due_at"] or far))
 
@@ -152,11 +164,36 @@ def start(assignment_id: str, user: User = Depends(current_user), db: Session = 
     return {"status": a.status}
 
 
+@router.post("/assignments/{assignment_id}/capture", status_code=201)
+def start_capture(assignment_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Called when the person presses "Take photo" on a camera-only task."""
+    a = _load_assignment(db, user, assignment_id)
+    if a.task.evidence != "camera":
+        raise HTTPException(409, "This task doesn't use the in-app camera")
+    tok = CaptureToken(assignment_id=a.id, user_id=user.id)
+    db.add(tok)
+    db.commit()
+    return {"token": tok.token, "expires_at": tok.created_at + CAPTURE_TTL}
+
+
+def _use_capture_token(db: Session, a: Assignment, user: User, token: str) -> CaptureToken:
+    tok = db.get(CaptureToken, token) if token else None
+    if tok is None or tok.assignment_id != a.id or tok.user_id != user.id:
+        raise HTTPException(422, "Take the photo with the camera in PLARE. Uploaded files aren't accepted for this task.")
+    if tok.used_at is not None:
+        raise HTTPException(409, "That photo was already sent. Take a new one.")
+    if now() - tok.created_at > CAPTURE_TTL:
+        raise HTTPException(422, "That photo is more than 10 minutes old. Take a new one.")
+    return tok
+
+
 @router.post("/assignments/{assignment_id}/submissions", status_code=201)
 async def submit(
     assignment_id: str,
+    background: BackgroundTasks,
     text: str = Form(""),
     file: UploadFile | None = File(None),
+    capture_token: str = Form(""),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -167,14 +204,15 @@ async def submit(
         raise HTTPException(409, "Your last submission is still waiting for review")
     text = text.strip()
     need = a.task.evidence
-    if need == "photo" and file is None:
+    if need in ("photo", "camera") and file is None:
         raise HTTPException(422, "This task needs a photo")
+    token = _use_capture_token(db, a, user, capture_token) if need == "camera" else None
     if need == "text" and not text:
         raise HTTPException(422, "This task needs a written response")
     if need == "any" and not text and file is None:
         raise HTTPException(422, "Add a note or attach a file")
 
-    file_path = file_type = None
+    file_path = file_type = data = None
     if file is not None:
         settings = get_settings()
         data = await file.read(settings.max_upload_bytes + 1)
@@ -183,7 +221,7 @@ async def submit(
         file_type = next((mime for mime, (sig, _) in SIGNATURES.items() if data.startswith(sig)), None)
         if file_type is None:
             raise HTTPException(415, "Only JPEG, PNG, or PDF files are accepted")
-        if need == "photo" and not file_type.startswith("image/"):
+        if need in ("photo", "camera") and not file_type.startswith("image/"):
             raise HTTPException(415, "This task needs a photo (JPEG or PNG)")
         # Server-generated name; the client's filename is never used on disk.
         file_path = f"{a.org_id}/{uid()}{SIGNATURES[file_type][1]}"
@@ -193,20 +231,29 @@ async def submit(
 
     sub = Submission(assignment_id=a.id, org_id=a.org_id, user_id=user.id, text=text, file_path=file_path, file_type=file_type)
     db.add(sub)
+    db.flush()
+    t = now()
+    if token is not None:
+        token.used_at = t
+    status = ai_check.initial_status(ai_check.checkable_text(text, data, file_type))
+    db.add(SubmissionCheck(submission_id=sub.id, captured_at=t if token is not None else None, ai_status=status))
     a.status = TaskStatus.submitted
     for m in db.scalars(select(Membership).where(Membership.org_id == a.org_id, Membership.role.in_(LEADS))):
         notify(db, m.user_id, a.org_id, "review", f"{user.name} submitted {a.task.title}", link="/app/review")
     db.commit()
+    if status == "pending":
+        background.add_task(ai_check.run_check, sub.id)
     return {"id": sub.id, "status": a.status}
 
 
-def _submission(s: Submission) -> dict:
+def _submission(s: Submission, check: SubmissionCheck | None) -> dict:
     a = s.assignment
     return {
         "id": s.id, "assignment_id": a.id, "task_title": a.task.title, "category": a.task.category,
         "user_id": s.user_id, "user_name": a.user.name, "text": s.text, "has_file": bool(s.file_path),
         "file_type": s.file_type, "status": s.status, "feedback": s.feedback,
-        "created_at": s.created_at, "reviewed_at": s.reviewed_at,
+        "created_at": s.created_at, "reviewed_at": s.reviewed_at, "evidence": a.task.evidence,
+        **ai_check.as_dict(check),
     }
 
 
@@ -216,7 +263,7 @@ def review_queue(org_id: str, status: str = "pending", user: User = Depends(curr
     q = select(Submission).where(Submission.org_id == org_id)
     if status != "all":
         q = q.where(Submission.status == status)
-    return [_submission(s) for s in db.scalars(q.order_by(Submission.created_at)).all()]
+    return [_submission(s, db.get(SubmissionCheck, s.id)) for s in db.scalars(q.order_by(Submission.created_at)).all()]
 
 
 @router.get("/submissions/{submission_id}/file")
@@ -252,7 +299,38 @@ def review(submission_id: str, body: ReviewIn, user: User = Depends(current_user
     notify(db, s.user_id, s.org_id, "review", f"{a.task.title} {verdict}", body=s.feedback, link="/app")
     audit(db, s.org_id, user, f"submission.{body.decision}", s.id)
     db.commit()
-    return _submission(s)
+    return _submission(s, db.get(SubmissionCheck, s.id))
+
+
+@router.post("/submissions/{submission_id}/ai-check")
+def rerun_ai_check(submission_id: str, background: BackgroundTasks, user: User = Depends(current_user),
+                   db: Session = Depends(get_db)):
+    """Reviewers can run the AI check again after an error or once a key is added."""
+    s = db.get(Submission, submission_id)
+    if s is None:
+        raise HTTPException(404, "Submission not found")
+    membership(db, user, s.org_id, *LEADS)
+    check = db.get(SubmissionCheck, s.id)
+    # Only a failed or never-configured check is re-run. A missing row means it predates the check.
+    if check is not None and check.ai_status not in ("error", "not_configured"):
+        raise HTTPException(409, {"pending": "The check is already running. Refresh in a moment.",
+                                  "done": "This submission was already checked."}.get(
+            check.ai_status, "There's no written work long enough to check."))
+    if check is None:
+        check = SubmissionCheck(submission_id=s.id)
+        db.add(check)
+    data = None
+    if s.file_path:
+        path = Path(get_settings().upload_dir) / s.file_path
+        data = path.read_bytes() if path.is_file() else None
+    status = ai_check.initial_status(ai_check.checkable_text(s.text, data, s.file_type))
+    if status == "not_configured":
+        raise HTTPException(409, "The AI check isn't set up. Add HF_TOKEN on the server, then try again.")
+    check.ai_status, check.ai_error = status, ""
+    db.commit()
+    if status == "pending":
+        background.add_task(ai_check.run_check, s.id)
+    return _submission(s, check)
 
 
 @router.get("/orgs/{org_id}/progress")

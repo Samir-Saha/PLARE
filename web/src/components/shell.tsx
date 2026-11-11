@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, ToastProvider, Wordmark, useLoad } from "./ui";
 import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./workspace";
-import { IconBook, IconCalendar, IconCamera, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
+import { IconBell, IconBook, IconCalendar, IconCamera, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean; countLabel?: string };
@@ -128,8 +128,8 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
   // Excuses badge for leads: requests waiting for a decision.
   const excusesPending = useLoad(() => (isLead ? api<ExcuseSummary>(`/orgs/${org.id}/excuses/summary`).then((r) => r.pending) : Promise.resolve(0)), [org.id, isLead, pathname]);
 
-  // TODO(nav): the mockup also lists BP check-in and Points. They have no pages or API yet,
-  // so they're left out rather than linking to 404s.
+  // TODO(nav): the mockup also lists Points. It has no page or API yet, so it's left out
+  // rather than linking to a 404.
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
@@ -175,6 +175,10 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
               <p className="truncate text-[12px] font-medium text-nav-muted">{role}{me.is_demo ? ", demo" : ""}</p>
             </div>
           </div>
+          <Link href="/app/settings" aria-current={pathname === "/app/settings" ? "page" : undefined}
+            className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-nav-muted transition-colors duration-150 hover:bg-nav-hover hover:text-nav-text">
+            <IconBell width={17} height={17} />Notifications
+          </Link>
           <ThemeToggle className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium! text-nav-muted! hover:bg-nav-hover! hover:text-nav-text!" />
           <Button variant="ghost" className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium! text-nav-muted! hover:bg-nav-hover! hover:text-nav-text!" onClick={onSignOut}>
             <IconLogout width={17} height={17} />Sign out

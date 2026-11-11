@@ -5,7 +5,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base, EnumStr, UTCDateTime, now
@@ -85,7 +85,8 @@ class Task(Base):
     priority: Mapped[str] = mapped_column(String(16), default="normal")
     due_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
     estimate_minutes: Mapped[int | None] = mapped_column(Integer)
-    evidence: Mapped[str] = mapped_column(String(16), default="any")  # any | text | photo | none
+    # any | text | photo | camera (photo taken live in the app, no file picker) | none
+    evidence: Mapped[str] = mapped_column(String(16), default="any")
     claimable: Mapped[bool] = mapped_column(Boolean, default=False)   # open task anyone can claim
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
@@ -428,6 +429,71 @@ class RoomMessage(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
     user: Mapped[User] = relationship()
+
+
+class CaptureToken(Base):
+    """Issued when someone presses "Take photo" for a camera-only task. One use, short-lived.
+
+    It ties the photo to a moment the server chose, so a camera-only submission has to arrive
+    within minutes of the in-app camera being used.
+    """
+
+    __tablename__ = "capture_tokens"
+    token: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: secrets.token_urlsafe(24))
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class SubmissionCheck(Base):
+    """Automatic checks on a submission: in-app camera capture and the AI-writing score.
+
+    A separate table (not new columns on submissions) so existing databases pick it up
+    through create_all without a migration.
+    """
+
+    __tablename__ = "submission_checks"
+    submission_id: Mapped[str] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), primary_key=True)
+    captured_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # set only for in-app camera photos
+    # skipped (nothing to check) | not_configured | too_short | pending | done | error
+    ai_status: Mapped[str] = mapped_column(String(16), default="skipped")
+    ai_score: Mapped[float | None] = mapped_column(Float)        # 0..1, the detector's chance the text is AI-written
+    ai_label: Mapped[str | None] = mapped_column(String(16))     # detector's class: human | mixed | ai
+    ai_error: Mapped[str] = mapped_column(Text, default="")
+    ai_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class PushSubscription(Base):
+    """One browser or installed app that agreed to receive push notifications."""
+
+    __tablename__ = "push_subscriptions"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True)  # the push service URL for this device
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    device: Mapped[str] = mapped_column(String(120), default="")      # a label like "iPhone" for the settings list
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class NotificationPrefs(Base):
+    """Per-person push settings. Quiet hours are minutes after local midnight; None means off."""
+
+    __tablename__ = "notification_prefs"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    quiet_start_minute: Mapped[int | None] = mapped_column(Integer)
+    quiet_end_minute: Mapped[int | None] = mapped_column(Integer)
+
+
+class PushDelivery(Base):
+    """One row per notification the push sender has handled, so nothing is pushed twice."""
+
+    __tablename__ = "push_deliveries"
+    notification_id: Mapped[str] = mapped_column(ForeignKey("notifications.id", ondelete="CASCADE"), primary_key=True)
+    # sending | sent | failed | quiet (held back by quiet hours) | no_device
+    status: Mapped[str] = mapped_column(String(16), default="sending")
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
 
 
 class BpSettings(Base):
