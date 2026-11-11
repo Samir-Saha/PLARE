@@ -21,7 +21,7 @@ services:
       # Your Vercel URL, for example https://plare.vercel.app (no trailing slash).
       - key: CORS_ORIGINS
         sync: false
-      # Demo sign-in with the fictional demo group. Turn off once real groups use the app.
+      # Demo sign-in with the demo group (real names, made-up records). Turn off once real groups use the app.
       - key: DEMO_AUTH
         value: "true"
       # Render's free disk is temporary: uploads disappear when the service restarts.

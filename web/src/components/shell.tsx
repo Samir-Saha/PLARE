@@ -137,7 +137,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
     { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
-  const role = org.role === "admin" ? "Admin" : isLead ? org.lead_label : org.member_label;
+  const role = org.title || (org.role === "admin" ? "Admin" : isLead ? org.lead_label : org.member_label);
 
   return (
     <div className="min-h-dvh bg-surface md:flex">
@@ -179,7 +179,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
         <MobileTopBar me={me} org={org} onOpenAccount={() => setSheet(true)} />
         {org.is_demo && (
           <p className="border-b border-line bg-warn-soft px-4 py-1.5 text-center text-xs text-warn">
-            Demo group. Every person and record here is fictional.
+            Demo group. Real names, but every record here is made up for the presentation.
           </p>
         )}
         <GmReminderBanner />
