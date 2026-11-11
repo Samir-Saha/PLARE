@@ -37,3 +37,4 @@ export const IconChevronRight = (p: P) => <Svg {...p}><path d="m9.5 6 6 6-6 6" /
 export const IconBolt = (p: P) => <Svg {...p}><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z" /></Svg>;
 export const IconBars = (p: P) => <Svg {...p}><path d="M6 20v-6M12 20V9M18 20V4" /></Svg>;
 export const IconAlert = (p: P) => <Svg {...p}><path d="M12 4 3 19.5h18z" /><path d="M12 10v4M12 17v.01" /></Svg>;
+export const IconCamera = (p: P) => <Svg {...p}><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.5" /></Svg>;
