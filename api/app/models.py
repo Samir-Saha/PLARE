@@ -469,3 +469,74 @@ class PushDelivery(Base):
     # sending | sent | failed | quiet (held back by quiet hours) | no_device
     status: Mapped[str] = mapped_column(String(16), default="sending")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class BpSettings(Base):
+    """A group's random BP check-in rules. Off until a brother turns it on."""
+
+    __tablename__ = "bp_settings"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    weekdays: Mapped[str] = mapped_column(String(16), default="0,1,2,3,4")  # 0 = Monday, comma-separated
+    window_start_minute: Mapped[int] = mapped_column(Integer, default=9 * 60)
+    window_end_minute: Mapped[int] = mapped_column(Integer, default=17 * 60)
+    checks_per_day: Mapped[int] = mapped_column(Integer, default=1)
+    response_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    # True: class counts as a time pledges can't take photos. Brothers can allow check-ins during class.
+    class_blocks: Mapped[bool] = mapped_column(Boolean, default=True)
+    timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
+    updated_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now, onupdate=now)
+
+
+class BpBlock(Base):
+    """A time someone can't take a BP photo. Weekly (weekday) or on one date (day), in their timezone.
+
+    Brothers see the kind and times. The note is private to the person who wrote it.
+    """
+
+    __tablename__ = "bp_blocks"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # see engine.bp_checkin.BLOCK_KINDS
+    weekday: Mapped[int | None] = mapped_column(Integer)
+    day: Mapped[str | None] = mapped_column(String(10))  # YYYY-MM-DD
+    start_minute: Mapped[int] = mapped_column(Integer)
+    end_minute: Mapped[int] = mapped_column(Integer)
+    note: Mapped[str] = mapped_column(String(120), default="")
+    source: Mapped[str] = mapped_column(String(16), default="manual")  # manual | calendar
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class BpDayPlan(Base):
+    """Marks that a pledge's check-ins for a day were planned, so planning runs once (or again after
+    their blocks change)."""
+
+    __tablename__ = "bp_day_plans"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    planned: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class BpPing(Base):
+    """One random check-in. Its time stays hidden until it opens. The pledge answers with a photo
+    taken in the app or says they can't right now, with a reason."""
+
+    __tablename__ = "bp_pings"
+    __table_args__ = (Index("ix_bp_ping_org_day", "org_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))
+    ping_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    closes_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    notified: Mapped[bool] = mapped_column(Boolean, default=False)
+    response: Mapped[str | None] = mapped_column(String(16))  # photo | declined
+    responded_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    decline_reason: Mapped[str] = mapped_column(String(300), default="")
+    file_path: Mapped[str | None] = mapped_column(String(255))
+    file_type: Mapped[str | None] = mapped_column(String(64))
+    missed_logged: Mapped[bool] = mapped_column(Boolean, default=False)
+    user: Mapped[User] = relationship()

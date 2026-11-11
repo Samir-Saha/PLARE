@@ -36,6 +36,7 @@ LOCAL_TZ = ZoneInfo("America/New_York")
 KINDS: dict[str, str] = {
     "late_bp": "Late BP post",
     "missed_bp": "Missed BP post",
+    "missed_bp_checkin": "Missed BP check-in",
     "late_gm": "Late GM message",
     "wrong_code": "Wrong GM code",
     "missed_gm": "Missed GM message",
