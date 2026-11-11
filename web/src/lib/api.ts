@@ -109,3 +109,8 @@ export type GroupStudyHistory = {
   sessions: { id: string; title: string; started_at: string; ended_at: string; quorum: number; hours_counted: number; hours_total: number; my_hours: number }[];
   members: { user_id: string; name: string; hours: number }[] | null;
 };
+export type BpSettings = { enabled: boolean; due_minute: number; timezone: string; day: string; due_at: string };
+export type BpCheckin = { id: string; user_id: string; user_name: string; day: string; caption: string; submitted_at: string; due_at: string; late: boolean; status: "on_time" | "late" };
+export type BpMine = BpSettings & { today: BpCheckin | null; history: BpCheckin[] };
+export type BpTile = { user_id: string; name: string; status: "on_time" | "late" | "missing" | "pending"; checkin: BpCheckin | null };
+export type BpGrid = BpSettings & { today: string; past_due: boolean; tiles: BpTile[]; counts: { on_time: number; late: number; missing: number; pending: number; members: number; flagged: number } };
