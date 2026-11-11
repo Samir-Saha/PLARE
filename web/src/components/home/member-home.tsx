@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { api, type Assignment, type LogEntry, type Meeting, type Session } from "@/lib/api";
+import { api, type Assignment, type GmMine, type LogEntry, type Meeting, type Session } from "@/lib/api";
 import { LOG_TZ } from "@/lib/log";
-import { fmtDuration, fmtShortDay, fmtTime, fmtToday } from "@/lib/format";
+import { fmtDuration, fmtMinute, fmtShortDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import { ButtonLink, CheckLink, CheckMark, Empty, ListRow, Notice, Page, Progress, SectionHeader, Skeleton, useLoad } from "@/components/ui";
 import { CalendarRail, RailFooterLink, meetingItems, type RailItem } from "./calendar-rail";
 import { TasksSection, type OpenTask } from "./tasks";
+import { MyPlan } from "@/components/plan";
 
 type StudyOverview = { active: Session | null; week_seconds: number; total_seconds: number; history: Session[] };
 
@@ -20,6 +21,8 @@ export function MemberHome() {
   const open = useLoad(() => api<OpenTask[]>(`/orgs/${org.id}/tasks/open`), [org.id]);
   const meetings = useLoad(() => api<Meeting[]>(`/orgs/${org.id}/meetings`), [org.id]);
   const study = useLoad(() => api<StudyOverview>(`/orgs/${org.id}/study`), [org.id]);
+  const gm = useLoad(() => api<GmMine>(`/orgs/${org.id}/gm/me`), [org.id]);
+  const [planVersion, setPlanVersion] = useState(0);
   const log = useLoad(() => api<LogEntry[]>(`/orgs/${org.id}/log`), [org.id]);
 
   const all = tasks.data ?? [];
@@ -78,6 +81,19 @@ export function MemberHome() {
       <section aria-labelledby="up-next" className="mb-8">
         <SectionHeader id="up-next" title="Today" />
         <ul className="space-y-2.5">
+          {gm.data?.enabled && (
+            <ListRow bar={gm.data.today ? (gm.data.today.flags.length ? "danger" : "ok") : now > new Date(gm.data.due_at).getTime() ? "danger" : "navy"}
+              end={gm.data.today ? <CheckMark label="GM sent" /> : <ButtonLink href="/app/gm" variant="primary" className="min-h-10 px-5">Send</ButtonLink>}>
+              <p className="text-[15px] font-semibold leading-snug">GM message</p>
+              <p className="mt-0.5 text-[13px] text-muted tabular-nums">
+                {gm.data.today
+                  ? `Sent ${fmtTime(gm.data.today.submitted_at, gm.data.timezone)}${gm.data.today.flags.includes("late") ? " · late" : ""}${gm.data.today.flags.includes("wrong_code") ? " · code didn't match" : ""}`
+                  : now > new Date(gm.data.due_at).getTime()
+                    ? `Was due ${fmtMinute(gm.data.due_minute)}. Send it now; it will be marked late.`
+                    : `Due ${fmtMinute(gm.data.due_minute)} · your goal for today and the code word`}
+              </p>
+            </ListRow>
+          )}
           <ListRow bar="mid" end={<ButtonLink href="/app/study" className="min-h-10 px-5">{s?.active ? "Resume" : "Join"}</ButtonLink>}>
             <p className="text-[15px] font-semibold leading-snug">Study hours</p>
             <p className="mt-0.5 text-[13px] text-muted tabular-nums">
@@ -98,8 +114,10 @@ export function MemberHome() {
         </ul>
       </section>
 
+      <MyPlan orgId={org.id} version={planVersion} />
+
       <div className="mb-8">
-        <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead={false} memberLabel={org.member_label} />
+        <TasksSection tasks={tasks} open={open} tz={me.timezone} isLead={false} memberLabel={org.member_label} onChange={() => setPlanVersion((v) => v + 1)} />
       </div>
 
       <section aria-labelledby="my-log">

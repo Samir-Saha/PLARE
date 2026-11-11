@@ -16,8 +16,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, now
-from .models import (Assignment, AvailabilityRule, LogEntry, MemberTitle, Membership, Notification, Organization, Role,
-                     StudySession, Submission, Task, TaskStatus, User)
+from .engine import gm as gm_rules
+from .models import (Assignment, AvailabilityRule, GmCode, GmMessage, GmSettings, LogEntry, MemberTitle, Membership,
+                     Notification, Organization, Role, StudySession, Submission, Task, TaskStatus, User)
+
+GM_GOALS = ["Finish the capstone wireframes.", "Two hours on the data structures problem set.",
+            "Coffee chat with a brother before lunch.", "Gym at 7, then study for the stats midterm.",
+            "Draft my BP post caption.", "Get through chapter 6 and make flashcards."]
 
 ORG_NAME = "KTP Epsilon Class"
 
@@ -92,7 +97,7 @@ def _seed_core() -> bool:
         brothers = [person(n, Role.admin, t) for n, t in BROTHERS]
         pledges = [person(n, Role.member) for n in PLEDGES]
         by_name = {u.name: u for u in brothers}
-        task_owner, approver, reviser = by_name["Abirami"], by_name["Abirami"], by_name["Arnav"]
+        task_owner, approver, reviser, code_setter = by_name["Abirami"], by_name["Abirami"], by_name["Arnav"], by_name["Arnav"]
 
         # Weekly availability. Everyone shares Tuesday 7:00-9:00 PM; the rest varies per person.
         for i, u in enumerate(pledges + brothers):
@@ -108,7 +113,6 @@ def _seed_core() -> bool:
 
         t = now()
         specs = [
-            ("Good morning message", "Good Morning Messages", "Send your good morning message to your assigned brother.", t + timedelta(hours=14), "text", "high"),
             ("BP post: week 6", "BP Posts", "Post this week's brother-pledge photo.", t + timedelta(days=2), "photo", "normal"),
             ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", t + timedelta(days=5), "none", "normal"),
             ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", t + timedelta(days=3), "any", "normal"),
@@ -143,6 +147,28 @@ def _seed_core() -> bool:
         db.add(Task(org_id=org.id, title="Book a room for game night", category="Events", claimable=True,
                     description="Open task: first to claim it owns it.", due_at=t + timedelta(days=4),
                     created_by=task_owner.id, estimate_minutes=20))
+
+        # GM messages: due 6:00 AM New York time. Today's code word is "lantern"; pledges can send today's.
+        # k = (i + 3 * back) % 7 puts each pledge's two past days 3 apart in the cycle, so nobody gets
+        # more than one late (k=4), wrong-code (k=5) or missing (k=6) GM across the seeded days.
+        tz = "America/New_York"
+        db.add(GmSettings(org_id=org.id, enabled=True, due_minute=gm_rules.DEFAULT_DUE_MINUTE,
+                          reminder_minutes=gm_rules.DEFAULT_REMINDER_MINUTES, timezone=tz))
+        today = gm_rules.local_day(t, tz)
+        for back, code in ((0, "lantern"), (1, "compass"), (2, "harbor")):
+            day = today - timedelta(days=back)
+            db.add(GmCode(org_id=org.id, day=day.isoformat(), code=code, set_by=code_setter.id))
+            if back == 0:
+                continue
+            due = gm_rules.due_at(day, gm_rules.DEFAULT_DUE_MINUTE, tz)
+            for i, u in enumerate(pledges):
+                k = (i + 3 * back) % 7
+                if k == 6:
+                    continue  # missing
+                sent = due + timedelta(minutes=12 + i) if k == 4 else due - timedelta(minutes=40 - 2 * i)
+                given = "compas" if back == 1 and k == 5 else "lighthouse" if k == 5 else code.capitalize() if k == 2 else code
+                db.add(GmMessage(org_id=org.id, user_id=u.id, day=day.isoformat(), goal=GM_GOALS[(i + back) % len(GM_GOALS)],
+                                 code_given=given, due_at=due, submitted_at=sent))
 
         for i, u in enumerate(pledges):
             for d in range(1, 4):
@@ -201,6 +227,14 @@ def seed_demo_log() -> int:
             late = a.task.due_at is not None and a.task.due_at < now() and a.status not in (TaskStatus.submitted, TaskStatus.approved)
             overdue[a.user_id] += int(late)
             negatives[a.user_id] += int(late) + int(a.status == TaskStatus.needs_revision)
+        # Late, wrong-code and missing GMs count toward the tie-break too.
+        gm_days = {m.day for m in db.scalars(select(GmMessage).where(GmMessage.org_id == org.id))}
+        sent = {(m.user_id, m.day): m for m in db.scalars(select(GmMessage).where(GmMessage.org_id == org.id))}
+        codes = {c.day: c.code for c in db.scalars(select(GmCode).where(GmCode.org_id == org.id))}
+        for uid_ in negatives:
+            for day in gm_days:
+                m = sent.get((uid_, day))
+                negatives[uid_] += 1 if m is None else int(bool(gm_rules.flags(m.submitted_at, m.due_at, m.code_given, codes.get(day))))
         log_count = dict(overdue)  # projected: the overdue sync logs each of these once
 
         added = []

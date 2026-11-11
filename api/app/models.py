@@ -184,6 +184,56 @@ class StudySession(Base):
         return max(0, int((end - self.started_at).total_seconds()) - self.paused_seconds)
 
 
+class GmSettings(Base):
+    """A group's good-morning message rules. Days and the due time are in `timezone`."""
+
+    __tablename__ = "gm_settings"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    due_minute: Mapped[int] = mapped_column(Integer, default=6 * 60)  # minutes after local midnight
+    reminder_minutes: Mapped[int] = mapped_column(Integer, default=10)
+    timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
+
+
+class GmCode(Base):
+    """The code word for one day. Only leads can read it; members hear it in person."""
+
+    __tablename__ = "gm_codes"
+    __table_args__ = (UniqueConstraint("org_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD in the group's timezone
+    code: Mapped[str] = mapped_column(String(64))
+    set_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now, onupdate=now)
+
+
+class GmMessage(Base):
+    __tablename__ = "gm_messages"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))
+    goal: Mapped[str] = mapped_column(Text)
+    code_given: Mapped[str] = mapped_column(String(64))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)  # deadline when it was sent, so later edits don't rewrite history
+    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship()
+
+
+class GmReminder(Base):
+    """One row per reminder sent, so a person never gets the same day's reminder twice."""
+
+    __tablename__ = "gm_reminders"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    day: Mapped[str] = mapped_column(String(10))
+    sent_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
