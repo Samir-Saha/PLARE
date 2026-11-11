@@ -3,6 +3,7 @@
 Everything here is read from existing records. Nothing is estimated or invented.
 """
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -10,11 +11,20 @@ from sqlalchemy.orm import Session
 
 from ..auth import LEADS, current_user, membership
 from ..db import get_db, now
+from ..excuses import is_excused
 from ..models import Assignment, Membership, Role, StudySession, Submission, Task, TaskStatus, User
 
 router = APIRouter()
 
 DONE = (TaskStatus.submitted, TaskStatus.approved)
+# Task category -> excuse kind. Anything else is only covered by an "all" (everything that day) excuse.
+EXCUSE_KIND = {"BP Posts": "bp", "Good Morning Messages": "gm", "Study Hours": "study", "Events": "event", "Meetings": "event"}
+
+
+def _excused(db: Session, org_id: str, a: Assignment) -> bool:
+    """Was this person excused for this task on the local day it was due? Overdue work they were excused from isn't flagged."""
+    day = a.task.due_at.astimezone(ZoneInfo(a.user.timezone or "America/New_York")).date()
+    return is_excused(db, org_id, a.user_id, EXCUSE_KIND.get(a.task.category, "all"), day)
 
 
 @router.get("/orgs/{org_id}/overview")
@@ -46,6 +56,7 @@ def overview(org_id: str, user: User = Depends(current_user), db: Session = Depe
              "status": a.status}
             for a in assignments
             if a.task_id in live and a.task.due_at and a.task.due_at < t and a.status not in DONE
+            and not _excused(db, org_id, a)
         ),
         key=lambda d: d["due_at"],
     )
