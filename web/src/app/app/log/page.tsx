@@ -33,6 +33,99 @@ function EntryRow({ e, showName, onRemove }: { e: LogEntry; showName: boolean; o
   );
 }
 
+type Group = { key: string; entries: LogEntry[] };
+
+/**
+ * Display-only grouping: entries with the same kind and detail on the same Eastern day become one
+ * row (e.g. several pledges overdue on one task). The API still returns one row per pledge.
+ */
+function groupEntries(entries: LogEntry[]): Group[] {
+  const groups = new Map<string, Group>();
+  for (const e of entries) {
+    const key = `${e.kind}|${e.detail}|${fmtShortDay(e.created_at, LOG_TZ)}`;
+    const g = groups.get(key);
+    if (g) g.entries.push(e);
+    else groups.set(key, { key, entries: [e] });
+  }
+  return [...groups.values()];
+}
+
+function SourceBadge({ entries }: { entries: LogEntry[] }) {
+  const auto = entries.every((e) => e.automatic);
+  const by = [...new Set(entries.filter((e) => !e.automatic).map((e) => e.created_by_name ?? "a brother"))];
+  return <Badge tone={auto ? "neutral" : "accent"}>{auto ? "Automatic" : by.length === 1 ? `Added by ${by[0]}` : "Added by brothers"}</Badge>;
+}
+
+function GroupRow({ entries, member, onRemove }: { entries: LogEntry[]; member: string; onRemove?: (e: LogEntry) => void }) {
+  const [open, setOpen] = useState(false);
+  const first = entries[0];
+  const id = `group-${first.id}`;
+  return (
+    <ListRow bar={logBar(first.kind)}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p className="text-[15px] font-semibold leading-snug">{first.label}</p>
+        <SourceBadge entries={entries} />
+      </div>
+      {first.detail && <p className="mt-0.5 text-[13px] leading-snug">{first.detail}</p>}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        <span role="img" aria-label={entries.map((e) => e.user_name).join(", ")} className="flex items-center">
+          {entries.slice(0, 4).map((e) => <Avatar key={e.id} name={e.user_name} className="-ml-2 size-7 text-[10px] ring-2 ring-surface first:ml-0" />)}
+          {entries.length > 4 && <span aria-hidden className="-ml-2 grid size-7 place-items-center rounded-full bg-raised text-[10px] font-semibold text-muted ring-2 ring-surface tabular-nums">+{entries.length - 4}</span>}
+        </span>
+        <span className="text-xs font-medium tabular-nums">{entries.length} {member}s</span>
+        <span className="text-xs text-muted tabular-nums">· <time dateTime={first.created_at}>{fmtShortDay(first.created_at, LOG_TZ)}, {fmtTime(first.created_at, LOG_TZ)}</time></span>
+        <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}
+          className="ml-auto min-h-9 rounded-lg px-2.5 text-xs font-semibold text-accent hover:bg-raised">
+          {open ? "Hide people" : `Show ${entries.length} people`}
+        </button>
+      </div>
+      {open && (
+        <ul id={id} className="mt-2 divide-y divide-line border-t border-line">
+          {entries.map((e) => (
+            <li key={e.id} className="flex items-center gap-2.5 py-1.5">
+              <Avatar name={e.user_name} className="size-7 text-[10px]" />
+              <span className="min-w-0 flex-1 truncate text-sm">{e.user_name}</span>
+              <span className="text-xs text-muted tabular-nums">{fmtTime(e.created_at, LOG_TZ)}</span>
+              {onRemove && !e.automatic && (
+                <button type="button" onClick={() => onRemove(e)} aria-label={`Remove ${e.label} entry for ${e.user_name}`} title="Remove entry"
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-raised hover:text-text">
+                  <IconClose width={14} height={14} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </ListRow>
+  );
+}
+
+/** Grouped entries under "Today" and "Earlier" headings (Eastern time). */
+function LogList({ entries, showName, member, onRemove }: { entries: LogEntry[]; showName: boolean; member: string; onRemove?: (e: LogEntry) => void }) {
+  const [today] = useState(() => fmtShortDay(new Date().toISOString(), LOG_TZ));
+  const groups = groupEntries(entries);
+  const sections = [
+    { title: "Today", groups: groups.filter((g) => fmtShortDay(g.entries[0].created_at, LOG_TZ) === today) },
+    { title: "Earlier", groups: groups.filter((g) => fmtShortDay(g.entries[0].created_at, LOG_TZ) !== today) },
+  ].filter((sec) => sec.groups.length > 0);
+  return (
+    <>
+      {sections.map((sec) => (
+        <section key={sec.title} aria-label={sec.title} className="mb-6">
+          <h2 className="mb-2.5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+            {sec.title}<span aria-hidden className="h-px flex-1 bg-line" />
+          </h2>
+          <ul className="space-y-2.5">
+            {sec.groups.map((g) => g.entries.length > 1
+              ? <GroupRow key={g.key} entries={g.entries} member={member} onRemove={onRemove} />
+              : <EntryRow key={g.key} e={g.entries[0]} showName={showName} onRemove={onRemove && !g.entries[0].automatic ? () => onRemove(g.entries[0]) : undefined} />)}
+          </ul>
+        </section>
+      ))}
+    </>
+  );
+}
+
 function LeadLog() {
   const { org } = useApp();
   const [who, setWho] = useState("");
@@ -111,9 +204,7 @@ function LeadLog() {
       {entries.error && <Notice>{entries.error}</Notice>}
       {!entries.data && !entries.error && <Skeleton />}
       {entries.data?.length === 0 && <Empty title="Nothing logged">{who || kind ? "No entries match these filters." : `Nothing has been logged for any ${member} yet.`}</Empty>}
-      <ul className="space-y-2.5">
-        {entries.data?.map((e) => <EntryRow key={e.id} e={e} showName onRemove={e.automatic ? undefined : () => remove(e)} />)}
-      </ul>
+      {entries.data && <LogList entries={entries.data} showName member={member} onRemove={remove} />}
     </Page>
   );
 }
@@ -172,9 +263,7 @@ function MemberLog() {
       {entries.error && <Notice>{entries.error}</Notice>}
       {!entries.data && !entries.error && <Skeleton />}
       {entries.data?.length === 0 && <Empty title="Nothing logged. Keep it that way." />}
-      <ul className="space-y-2.5">
-        {entries.data?.map((e) => <EntryRow key={e.id} e={e} showName={false} />)}
-      </ul>
+      {entries.data && <LogList entries={entries.data} showName={false} member={org.member_label.toLowerCase()} />}
     </Page>
   );
 }

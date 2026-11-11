@@ -246,7 +246,8 @@ def test_demo_seed_is_usable(client):
     past = client.get(f"/orgs/{org}/gm/inbox?day={yesterday}", headers=lead).json()
     assert past["counts"]["flagged"] > 0 and past["counts"]["missing"] > 0 and past["counts"]["on_time"] > 0
     assert client.post(f"/orgs/{org}/gm", json={"goal": "Study", "code": "lantern"}, headers=h).status_code == 201
-    best = client.get(f"/orgs/{org}/best-times?duration=90&days=7", headers=h).json()
+    # 8 days always contains one complete shared Tuesday 7-9 PM slot; 7 days misses it on Tuesday evenings.
+    best = client.get(f"/orgs/{org}/best-times?duration=90&days=8", headers=h).json()
     assert best["options"][0]["count"] == 27
 
 

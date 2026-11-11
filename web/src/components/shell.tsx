@@ -8,10 +8,10 @@ import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./
 import { IconBook, IconCalendar, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
-type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
+type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean; countLabel?: string };
 
-function CountPill({ n, alert }: { n: number; alert?: boolean }) {
-  return <span className={`ml-auto min-w-6 rounded-full px-2 py-px text-center text-[12px] font-bold tabular-nums ${alert ? "bg-danger text-surface" : "bg-accent-2 text-accent-2-fg"}`}>{n}</span>;
+function CountPill({ n, alert, label }: { n: number; alert?: boolean; label?: string }) {
+  return <span aria-label={label} title={label} className={`ml-auto min-w-6 rounded-full px-2 py-px text-center text-[12px] font-bold tabular-nums ${alert ? "bg-danger text-surface" : "bg-accent-2 text-accent-2-fg"}`}>{n}</span>;
 }
 
 type Ctx = { me: Me; org: Org; isLead: boolean; refresh: () => Promise<void>; selectOrg: (id: string) => void };
@@ -138,7 +138,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/coffee", label: "Coffee chats", icon: IconCoffee, short: "Coffee" },
     { href: "/app/group", label: "Group", icon: IconUsers },
-    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
+    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true, countLabel: `${logToday.data ?? 0} new today` },
     { href: "/app/excuses", label: "Excuses", icon: IconNote, count: excusesPending.data || undefined },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
@@ -159,7 +159,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
                 className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-[15px] font-medium transition-colors duration-150 ${on ? "bg-accent font-bold text-accent-fg shadow-card" : "text-text hover:bg-accent-soft"}`}>
                 <n.icon width={19} height={19} className={on ? "" : "text-accent-2"} />
                 {n.label}
-                {n.count ? <CountPill n={n.count} alert={n.alert} /> : null}
+                {n.count ? <CountPill n={n.count} alert={n.alert} label={n.countLabel} /> : null}
               </Link>
             );
           })}
@@ -201,7 +201,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
               <n.icon width={22} height={22} />
               <span className="max-w-full truncate px-0.5">{n.short ?? n.label}</span>
               {n.count ? (
-                <span className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[11px] font-bold leading-4 tabular-nums ${n.alert ? "bg-danger text-surface" : "bg-accent text-accent-fg"}`}>
+                <span aria-label={n.countLabel} title={n.countLabel} className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[11px] font-bold leading-4 tabular-nums ${n.alert ? "bg-danger text-surface" : "bg-accent text-accent-fg"}`}>
                   {n.count > 99 ? "99+" : n.count}
                 </span>
               ) : null}
