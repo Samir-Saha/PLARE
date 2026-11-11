@@ -4,6 +4,8 @@ PLARE keeps a group's tasks, submissions, and schedules in one place. It was bui
 
 - **Tasks and submissions.** Leads assign tasks with due dates and the proof they need (a note, a photo, or either). Members submit from their dashboard.
 - **Review queue.** Every submission lands in one queue with the person, task, time, and photo. Leads approve or send it back with feedback, so nobody digs through a group chat.
+- **Random BP check-ins (opt-in).** Brothers turn them on and choose the days, the window, and how many a day. Each pledge gets a notification at a random time and sends a photo in business professional, taken in the app. Check-ins never open during times the pledge can't take a photo (class unless brothers allow it, interviews, religious services, work, medical), which they type in or confirm from Google Calendar. They can always answer "I can't right now" with a reason. A missed check-in becomes one factual log entry. No location is collected.
+- **Phone notifications.** Web Push for every in-app notification, with quiet hours per person and no duplicate sends. Needs VAPID keys (see DEPLOY.md).
 - **BP photos taken in the app.** Tasks can require a photo taken with the camera inside PLARE, with no file picker. The server issues a one-time token when the photo is taken and accepts it for 10 minutes, and reviewers see "Taken in the app". This makes cheating harder but can't prove a photo is real: a browser can't rule out a faked camera.
 - **AI-writing check.** Written notes and PDF text (export slides as PDF) are scored by a free open-source detector on Hugging Face, and the score appears in the review queue and to the submitter. It never notifies anyone or changes a submission, because detectors misjudge human writing. Set a free `HF_TOKEN` to turn it on. The free models were trained on older AI, so they miss a lot of current AI writing.
 - **Shared availability.** Everyone marks their weekly free time. PLARE ranks meeting times by how many people can come and names who can't make each alternative.
@@ -98,7 +100,7 @@ It then opens full-screen from its own icon, like a native app.
 ## Tests
 
 ```bash
-cd api && python -m pytest -q     # 36 tests: engines, permissions, uploads, core flows; also pass on Postgres via TEST_DATABASE_URL
+cd api && python -m pytest -q     # engines, permissions, uploads, push, BP check-ins; also pass on Postgres via TEST_DATABASE_URL
 cd web && npx tsc --noEmit && npx eslint src && npm run build
 ```
 
@@ -120,8 +122,9 @@ web/
 
 ## Not built yet
 
-- Reminders and push notifications (good-morning messages, BP posts, deadline alarms). In-app notifications are recorded, but nothing is pushed to a phone yet.
-- Recurring tasks and check-in photos during study sessions.
+- A notification center page (the API has `GET /notifications`; today they show as push and in-app banners).
+- Due-soon and overdue task reminders, and alarm mode for important deadlines.
+- Recurring tasks.
 - Cloud file storage. Uploads are saved on the API server's disk, which is fine for a demo and should move to Supabase Storage before real use.
 - Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
 
