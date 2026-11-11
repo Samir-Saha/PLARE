@@ -89,3 +89,19 @@ export type Excuse = {
   status: "pending" | "approved" | "denied"; reply: string; reviewer_name: string | null; created_at: string; reviewed_at: string | null;
 };
 export type ExcuseSummary = { pending: number; members: { user_id: string; name: string; pending: number; approved: number; denied: number }[] };
+
+export type HourStatus = "waiting" | "open" | "short" | "on_track" | "counted" | "incomplete";
+export type RoomHour = { index: number; start: string; end: string; status: HourStatus; ping_at: string | null; closes_at: string | null; count: number; confirmed: { user_id: string; name: string; checkin_id: string | null; at: string }[] };
+export type RoomPerson = { user_id: string; name: string; role: "admin" | "lead" | "member"; studying: boolean; here_now: boolean };
+export type RoomMessage = { id: string; user_id: string; name: string; body: string; created_at: string };
+export type StudyRoom = {
+  id: string; title: string; started_at: string; ended_at: string | null; started_by_name: string; quorum: number; window_minutes: number; server_now: string; can_end: boolean;
+  me: { role: "admin" | "lead" | "member"; studying: boolean; can_join: boolean; hours_counted: number };
+  people: RoomPerson[]; hours: RoomHour[]; open_ping: { id: string; hour_index: number; closes_at: string; i_confirmed: boolean } | null; messages: RoomMessage[];
+};
+export type GroupStudySettings = { quorum: number; window_minutes: number; member_count: number; customized: boolean };
+export type GroupStudyHistory = {
+  my_hours: number;
+  sessions: { id: string; title: string; started_at: string; ended_at: string; quorum: number; hours_counted: number; hours_total: number; my_hours: number }[];
+  members: { user_id: string; name: string; hours: number }[] | null;
+};
