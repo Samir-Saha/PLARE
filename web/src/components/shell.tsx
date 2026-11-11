@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, ToastProvider, Wordmark, useLoad } from "./ui";
 import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./workspace";
-import { IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
+import { IconBell, IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
@@ -172,6 +172,10 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
               <p className="truncate text-[11px] text-muted">{role}{me.is_demo ? " · demo" : ""}</p>
             </div>
           </div>
+          <Link href="/app/settings" aria-current={pathname === "/app/settings" ? "page" : undefined}
+            className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-text transition-colors duration-150 hover:bg-surface">
+            <IconBell width={17} height={17} />Notifications
+          </Link>
           <ThemeToggle className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium!" />
           <Button variant="ghost" className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium!" onClick={onSignOut}>
             <IconLogout width={17} height={17} />Sign out

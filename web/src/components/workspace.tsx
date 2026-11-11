@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { post, type Me, type Org } from "@/lib/api";
 import { Avatar, Button, Dialog, Notice, ThemeToggle, field, useToast } from "./ui";
-import { IconLogout } from "./icons";
+import { IconBell, IconLogout } from "./icons";
 
 export const GROUP_KINDS: [string, string][] = [
   ["pledge_class", "Pledge class"], ["study_group", "Study group"], ["intern_team", "Intern team"],
@@ -145,6 +145,7 @@ export function AccountSheet({ open, onClose, me, org, selectOrg, onCreate, onSi
       )}
       <div className="flex flex-col gap-1">
         <Button variant="outline" className="justify-start" onClick={() => { onClose(); onCreate(); }}>+ Create a group</Button>
+        <NotificationsLink onClose={onClose} />
         <ThemeToggle className="min-h-11! justify-start!" />
         <Button variant="ghost" className="min-h-11 justify-start" onClick={onSignOut}>
           <IconLogout width={18} height={18} />Sign out
@@ -163,5 +164,14 @@ export function MobileTopBar({ me, org, onOpenAccount }: { me: Me; org: Org | nu
         <Avatar name={me.name} className="size-8 text-[11px]" />
       </button>
     </header>
+  );
+}
+
+function NotificationsLink({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  return (
+    <Button variant="ghost" className="min-h-11 justify-start" onClick={() => { onClose(); router.push("/app/settings"); }}>
+      <IconBell width={18} height={18} />Notifications
+    </Button>
   );
 }
