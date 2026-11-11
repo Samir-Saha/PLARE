@@ -5,6 +5,8 @@ import { fmtDue } from "@/lib/format";
 import { IconClose } from "@/components/icons";
 import { Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, Skeleton, field, useToast, type Bar } from "@/components/ui";
 import { SuggestOwner } from "@/components/plan";
+import { CameraCapture, type Capture } from "@/components/camera";
+import { AiCheckNote } from "@/components/checks";
 
 const STATUS: Record<Assignment["status"], { label: string }> = {
   not_started: { label: "Not started" },
@@ -111,6 +113,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
   const [openForm, setOpenForm] = useState(false);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [capture, setCapture] = useState<Capture | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const canSubmit = task.evidence !== "none" && ["not_started", "in_progress", "needs_revision"].includes(task.status);
@@ -121,6 +124,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
     e.preventDefault();
     // Check on the device first so people don't wait on an upload that will be rejected.
     if (task.evidence === "photo" && !file) return setError("Add a photo before sending.");
+    if (task.evidence === "camera" && !capture) return setError("Take the photo with the camera before sending.");
     if (task.evidence === "text" && !text.trim()) return setError("Write a note before sending.");
     if (task.evidence === "any" && !text.trim() && !file) return setError("Add a note or attach a file.");
     if (file && file.size > 8 * 1024 * 1024) return setError("That file is over 8 MB. Pick a smaller one.");
@@ -128,7 +132,10 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
     setError("");
     const body = new FormData();
     body.set("text", text);
-    if (file) body.set("file", file);
+    if (task.evidence === "camera" && capture) {
+      body.set("file", new File([capture.blob], "photo.jpg", { type: "image/jpeg" }));
+      body.set("capture_token", capture.token);
+    } else if (file) body.set("file", file);
     try {
       await api(`/assignments/${task.id}/submissions`, { method: "POST", body });
       toast(`Sent ${task.title} for review`);
@@ -158,23 +165,36 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
         </div>
         {task.description && <p className={`mt-1.5 text-[13px] text-muted ${openForm ? "" : "line-clamp-1"}`}>{task.description}</p>}
         {task.status === "needs_revision" && task.feedback && <div className="mt-3"><Notice tone="warn">Reviewer: {task.feedback}</Notice></div>}
+        {task.check && <AiCheckNote check={task.check} own />}
         {openForm && canSubmit && (
           <form onSubmit={submit} className="mt-4 space-y-3 border-t border-line pt-4">
+            {task.evidence === "camera" && (
+              <div className="text-sm font-medium">
+                <p className="mb-2">Photo <span className="font-normal text-muted">(take it now with the camera; uploads aren&apos;t accepted)</span></p>
+                <CameraCapture onChange={setCapture}
+                  getToken={async () => (await post<{ token: string }>(`/assignments/${task.id}/capture`)).token} />
+              </div>
+            )}
             {task.evidence !== "photo" && (
               <label className="block text-sm font-medium">
-                Note
+                {task.evidence === "camera" ? "Caption (optional)" : "Note"}
                 <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={4000}
                   className={field} />
               </label>
             )}
-            {task.evidence !== "text" && (
+            {task.evidence !== "text" && task.evidence !== "camera" && (
               <label className="block text-sm font-medium">
-                {task.evidence === "photo" ? "Photo (JPEG or PNG, up to 8 MB)" : "Attachment (JPEG, PNG, or PDF, optional)"}
+                {task.evidence === "photo" ? "Photo (JPEG or PNG, up to 8 MB)" : "Attachment (JPEG, PNG, or PDF, optional; export slides as PDF)"}
                 <input type="file" accept={task.evidence === "photo" ? "image/jpeg,image/png" : "image/jpeg,image/png,application/pdf"}
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm font-normal" />
               </label>
             )}
             <p className="text-xs text-muted">Only you and this group&apos;s reviewers can see what you submit.</p>
+            {task.ai_check_on && (
+              <p className="text-xs text-muted">
+                Written work, including PDF text, is sent to GPTZero to check for AI writing. You and your reviewers see the score. Detectors can be wrong, so it&apos;s never used on its own.
+              </p>
+            )}
             {error && <Notice>{error}</Notice>}
             <Button variant="primary" type="submit" busy={busy}>Send for review</Button>
           </form>
@@ -211,7 +231,9 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
         <label className="text-sm font-medium sm:col-span-2">Title<input required maxLength={200} value={form.title} onChange={set("title")} className={field} /></label>
         <label className="text-sm font-medium sm:col-span-2">Details<textarea rows={2} value={form.description} onChange={set("description")} className={field} /></label>
         <label className="text-sm font-medium">Category
-          <select value={form.category} onChange={set("category")} className={field}>
+          {/* BP photos default to the in-app camera; the lead can still change it below. */}
+          <select value={form.category} className={field}
+            onChange={(e) => setForm({ ...form, category: e.target.value, ...(e.target.value === "BP Posts" ? { evidence: "camera" } : {}) })}>
             {["Good Morning Messages", "BP Posts", "Study Hours", "Meetings", "Events", "General Requirements"].map((c) => <option key={c}>{c}</option>)}
           </select>
         </label>
@@ -223,7 +245,7 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
         </label>
         <label className="text-sm font-medium">Proof required
           <select value={form.evidence} onChange={set("evidence")} className={field}>
-            <option value="any">Note or file</option><option value="text">Written note</option><option value="photo">Photo</option><option value="none">Nothing to submit</option>
+            <option value="any">Note or file</option><option value="text">Written note</option><option value="photo">Photo</option><option value="camera">Photo taken in the app (no uploads)</option><option value="none">Nothing to submit</option>
           </select>
         </label>
         <label className="text-sm font-medium">Who

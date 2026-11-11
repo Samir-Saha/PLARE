@@ -65,8 +65,15 @@ export async function signOut() {
 
 export type Org = { id: string; name: string; kind: string; role: "admin" | "lead" | "member"; member_label: string; lead_label: string; is_demo: boolean; title?: string | null };
 export type Me = { id: string; email: string; name: string; timezone: string; is_demo: boolean; calendar_synced_at: string | null; orgs: Org[] };
-export type Assignment = { id: string; title: string; description: string; category: string; priority: string; due_at: string | null; evidence: "any" | "text" | "photo" | "none"; status: "not_started" | "in_progress" | "submitted" | "approved" | "needs_revision"; overdue: boolean; feedback: string };
-export type SubmissionRow = { id: string; task_title: string; category: string; user_name: string; text: string; has_file: boolean; file_type: string | null; status: string; feedback: string; created_at: string };
+export type Evidence = "any" | "text" | "photo" | "camera" | "none";
+/** Automatic checks on a submission. The AI score is a hint for the reviewer, never a verdict. */
+export type SubmissionCheck = {
+  captured_in_app: boolean; captured_at: string | null;
+  ai_status: "skipped" | "not_configured" | "too_short" | "pending" | "done" | "error";
+  ai_score: number | null; ai_label: string | null; ai_error: string; ai_checked_at: string | null;
+};
+export type Assignment = { id: string; title: string; description: string; category: string; priority: string; due_at: string | null; evidence: Evidence; status: "not_started" | "in_progress" | "submitted" | "approved" | "needs_revision"; overdue: boolean; feedback: string; ai_check_on: boolean; check: SubmissionCheck | null };
+export type SubmissionRow = SubmissionCheck & { id: string; task_title: string; category: string; user_name: string; text: string; has_file: boolean; file_type: string | null; status: string; feedback: string; created_at: string; evidence: Evidence };
 export type SlotOption = { start: string; end: string; count: number; total: number; flexibility_minutes?: number; unavailable: string[] };
 export type Slots = { total: number; timezone: string; no_data: string[]; options: SlotOption[] };
 export type Session = { id: string; started_at: string; ended_at: string | null; paused_seconds: number; elapsed_seconds: number; state: "running" | "paused" | "ended" };

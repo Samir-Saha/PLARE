@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, fileUrl, post, type Progress, type SubmissionRow } from "@/lib/api";
 import { fmtDay, fmtTime, fmtToday } from "@/lib/format";
 import { useApp } from "@/components/shell";
+import { ReviewChecks } from "@/components/checks";
 import { Avatar, Button, Empty, ListRow, Notice, PageHeader, Skeleton, StatTile, barFor, field, useLoad, useToast, Page } from "@/components/ui";
 
 
@@ -117,6 +118,7 @@ function Row({ s, tz, onDone }: { s: SubmissionRow; tz: string; onDone: () => vo
           </div>
         )}
       </div>
+      <ReviewChecks s={s} tz={tz} onChange={onDone} />
       {s.text && <p className="mt-2.5 whitespace-pre-wrap rounded-xl bg-raised px-3 py-2.5 text-sm">{s.text}</p>}
       {s.has_file && !image && <Button variant="outline" className="mt-2.5 min-h-9" onClick={openFile}>View {s.file_type?.startsWith("image/") ? "photo" : "attachment"}</Button>}
       {/* eslint-disable-next-line @next/next/no-img-element */}
