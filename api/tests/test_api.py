@@ -314,3 +314,24 @@ def test_update_org_is_admin_only(client, world):
     assert client.patch(f"/orgs/{org}", json={"kind": "nope"}, headers=as_user("admin@t.demo")).status_code == 422
     members = client.get(f"/orgs/{org}/members", headers=as_user("m1@t.demo")).json()
     assert all("joined_at" in m for m in members)
+
+
+def test_overview_is_lead_only_and_uses_real_records(client, world):
+    org, lead, m1 = world["org_a"], as_user("lead@t.demo"), as_user("m1@t.demo")
+    assert client.get(f"/orgs/{org}/overview", headers=m1).status_code == 403
+    assert client.get(f"/orgs/{org}/overview", headers=as_user("outsider@t.demo")).status_code == 404
+    empty = client.get(f"/orgs/{org}/overview", headers=lead).json()
+    assert empty["deadlines"] == [] and empty["overdue_count"] == 0 and empty["study_seconds_week"] == 0
+    assert empty["member_count"] == 3 and {e["kind"] for e in empty["activity"]} == {"joined"}
+
+    soon = (now() + timedelta(days=2)).isoformat()
+    past = (now() - timedelta(hours=3)).isoformat()
+    client.post(f"/orgs/{org}/tasks", json={"title": "Soon", "due_at": soon}, headers=lead)
+    client.post(f"/orgs/{org}/tasks", json={"title": "Late", "due_at": past}, headers=lead)
+    a = next(x for x in mine(client, world) if x["title"] == "Soon")
+    client.post(f"/assignments/{a['id']}/submissions", data={"text": "done"}, headers=m1)
+    client.post(f"/orgs/{org}/study/start", headers=m1)
+    o = client.get(f"/orgs/{org}/overview", headers=lead).json()
+    assert [d["title"] for d in o["deadlines"]] == ["Soon"] and o["deadlines"][0]["done"] == 1
+    assert o["overdue_count"] == 3 and {x["title"] for x in o["overdue"]} == {"Late"}
+    assert o["activity"][0]["kind"] == "submitted" and o["activity"][0]["who"] == "m1"
