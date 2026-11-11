@@ -28,10 +28,11 @@ All of these must pass. Add tests for new backend behavior, especially permissio
 
 ## Not built yet, in priority order
 
-1. **Deployment:** web on Vercel, API on Render or Fly, Postgres on Supabase (`DATABASE_URL=postgresql+psycopg://...`). Add the production URL to Supabase redirect URLs and the Google OAuth JavaScript origins.
+1. **Deployment:** the config is done (`render.yaml`, `DEPLOY.md`). What's left is creating the Render and Vercel accounts, which the repo owner has to do.
 2. **Notifications page:** the API already has `GET /notifications` and `POST /notifications/read`. Build the in-app notification center with unread counts and read/unread states.
 3. **Reminders and web push:** a scheduled job in the API (APScheduler or a cron endpoint) sends recurring reminders (good-morning message, BP posts, due-soon, overdue) via Web Push (VAPID keys, a service worker, and stored subscriptions). Respect each user's quiet hours and avoid sending duplicates.
 4. **Recurring tasks:** a recurrence rule on a task that creates the next assignment on a schedule.
 5. **Optional study check-in photos:** during a running study session, prompt at a group-configured interval. Camera use always requires the user to press a button.
 6. **Alarm mode (opt-in):** for an important deadline, repeat push reminders until the user solves a simple addition problem in the app or dismisses the alarm. The answer is checked on the server.
-7. **Deadline back-planner and auto-balance:** given a deadline and task estimates, place work sessions into owners' free time (reuse `rank_group_slots` and `plan_study_blocks`), and suggest owners for unclaimed tasks based on workload and free hours.
+
+Done: the deadline back-planner and owner suggestions (`app/engine/planner.py`, `app/routers/planner.py`, `web/src/components/plan.tsx`).

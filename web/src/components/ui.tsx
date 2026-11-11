@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { IconCheck, IconMoon, IconSun } from "./icons";
 
 export function Wordmark({ className = "" }: { className?: string }) {
@@ -30,9 +30,12 @@ export function Button({ variant = "secondary", busy, className = "", children, 
     <button
       {...rest}
       disabled={rest.disabled || busy}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      aria-busy={busy || undefined}
+      className={`relative inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,color,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
     >
-      {busy ? "Working…" : children}
+      {/* Busy keeps the label in place (no width jump) and overlays a spinner. */}
+      <span className={`inline-flex items-center gap-2 ${busy ? "invisible" : ""}`}>{children}</span>
+      {busy && <span aria-hidden className="absolute inset-0 grid place-items-center"><Spinner /></span>}
     </button>
   );
 }
@@ -44,6 +47,10 @@ export function ButtonLink({ href, variant = "secondary", className = "", childr
       {children}
     </Link>
   );
+}
+
+export function Spinner({ className = "size-4" }: { className?: string }) {
+  return <span aria-hidden className={`inline-block animate-spin rounded-full border-2 border-current border-r-transparent ${className}`} />;
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -91,10 +98,12 @@ export function SectionHeader({ title, href, linkLabel, id, className = "" }: { 
 export function Page({ children, rail, railLabel, railOnMobile = true }: { children: ReactNode; rail?: ReactNode; railLabel?: string; railOnMobile?: boolean }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col xl:flex-row">
-      <div className="min-w-0 flex-1 px-5 pb-10 pt-8 sm:px-8 md:px-9 md:pt-9">{children}</div>
+      <div className="min-w-0 flex-1 px-5 pb-10 pt-6 sm:px-8 md:px-10 md:pt-9">
+        <div className="mx-auto w-full max-w-[1080px]">{children}</div>
+      </div>
       {rail && (
         <aside aria-label={railLabel}
-          className={`border-t border-line bg-raised px-5 py-8 sm:px-8 xl:w-[280px] xl:shrink-0 xl:rounded-r-[28px] xl:border-t-0 xl:px-6 xl:pt-8 ${railOnMobile ? "" : "hidden xl:block"}`}>
+          className={`border-t border-line bg-raised px-5 py-8 sm:px-8 xl:w-[280px] xl:shrink-0 xl:border-l xl:border-t-0 xl:px-6 xl:pt-8 ${railOnMobile ? "" : "hidden xl:block"}`}>
           {rail}
         </aside>
       )}
@@ -320,4 +329,112 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick]);
   return { data, error, reload: () => setTick((t) => t + 1) };
+}
+
+
+/* ---------- Dialog ---------- */
+
+/**
+ * Accessible modal built on the native <dialog>: focus moves in and is trapped,
+ * Escape closes it, and focus returns to the opener when it closes.
+ */
+export function Dialog({ open, onClose, title, description, children, size = "md" }: {
+  open: boolean; onClose: () => void; title: string; description?: string; children: ReactNode; size?: "md" | "sheet";
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  const shape = size === "sheet"
+    ? "mt-auto mb-0 w-full max-w-none rounded-t-[20px] pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:m-auto sm:max-w-md sm:rounded-[18px] sm:pb-5"
+    : "w-[calc(100%-2rem)] max-w-md rounded-[18px]";
+  return (
+    <dialog ref={ref} aria-labelledby={titleId} onClose={onClose}
+      onClick={(e) => { if (e.target === ref.current) onClose(); }}
+      className={`m-auto border border-line bg-surface p-5 text-text shadow-frame backdrop:bg-black/40 ${shape}`}>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id={titleId} className="font-display text-lg font-semibold">{title}</h2>
+          {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close"
+          className="-m-1 grid size-9 shrink-0 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-raised hover:text-text">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      {open && children}
+    </dialog>
+  );
+}
+
+/* ---------- Toasts ---------- */
+
+type Toast = { id: number; text: string; tone: "ok" | "danger" };
+const ToastContext = createContext<(text: string, tone?: Toast["tone"]) => void>(() => {});
+
+/** Short confirmations after an action ("Saved", "Link copied"). Announced to screen readers. */
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const push = useCallback((text: string, tone: Toast["tone"] = "ok") => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t.slice(-2), { id, text, tone }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+  }, []);
+  return (
+    <ToastContext.Provider value={push}>
+      {children}
+      <div role="status" aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4 md:bottom-6 md:items-end md:px-6">
+        {toasts.map((t) => (
+          <p key={t.id} className={`pointer-events-auto rounded-xl px-4 py-2.5 text-sm font-medium shadow-frame ${t.tone === "ok" ? "bg-accent text-accent-fg" : "bg-danger text-white"}`}>
+            {t.text}
+          </p>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+export function useToast() {
+  return useContext(ToastContext);
+}
+
+/* ---------- Tabs ---------- */
+
+/** Tab bar with arrow-key navigation. Render the active panel yourself with `tabPanelProps`. */
+export function Tabs<T extends string>({ tabs, value, onChange, label }: {
+  tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (id: T) => void; label: string;
+}) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  function onKey(e: KeyboardEvent, i: number) {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = (i + step + tabs.length) % tabs.length;
+    onChange(tabs[next].id);
+    refs.current[next]?.focus();
+  }
+  return (
+    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto border-b border-line">
+      {tabs.map((t, i) => {
+        const on = t.id === value;
+        return (
+          <button key={t.id} ref={(el) => { refs.current[i] = el; }} role="tab" id={`tab-${t.id}`} aria-controls={`panel-${t.id}`}
+            aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => onChange(t.id)} onKeyDown={(e) => onKey(e, i)}
+            className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors duration-150 ${on ? "border-accent text-text" : "border-transparent text-muted hover:text-text"}`}>
+            {t.label}
+            {t.count !== undefined && <span className="rounded-full bg-raised px-1.5 text-xs tabular-nums text-muted">{t.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function tabPanelProps(id: string) {
+  return { role: "tabpanel", id: `panel-${id}`, "aria-labelledby": `tab-${id}`, tabIndex: 0 } as const;
 }

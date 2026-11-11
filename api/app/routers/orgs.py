@@ -105,7 +105,7 @@ def members(org_id: str, user: User = Depends(current_user), db: Session = Depen
     titles = dict(db.execute(select(MemberTitle.user_id, MemberTitle.title).where(MemberTitle.org_id == org_id)).all())
     return [
         {"user_id": m.user_id, "name": m.user.name, "role": m.role, "timezone": m.user.timezone,
-         "title": titles.get(m.user_id)}
+         "title": titles.get(m.user_id), "joined_at": m.created_at}
         for m in sorted(rows, key=lambda m: m.user.name.lower())
     ]
 
@@ -126,6 +126,62 @@ def create_invite(org_id: str, body: InviteIn, user: User = Depends(current_user
     audit(db, org_id, user, "invite.create", body.role.value)
     db.commit()
     return {"code": invite.code, "role": invite.role, "expires_at": invite.expires_at}
+
+
+class OrgUpdateIn(BaseModel):
+    name: str | None = Field(None, min_length=2, max_length=120)
+    kind: str | None = None
+
+
+@router.patch("/orgs/{org_id}")
+def update_org(org_id: str, body: OrgUpdateIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Rename a group or change its type (which also sets how roles are labeled). Admins only."""
+    membership(db, user, org_id, Role.admin)
+    org = db.get(Organization, org_id)
+    if body.kind is not None:
+        if body.kind not in TEMPLATES:
+            raise HTTPException(422, "Unknown group type")
+        org.kind = body.kind
+        org.member_label, org.lead_label = TEMPLATES[body.kind]
+    if body.name is not None:
+        org.name = body.name.strip()
+    audit(db, org_id, user, "org.update", org.name)
+    db.commit()
+    return {"id": org.id, "name": org.name, "kind": org.kind,
+            "member_label": org.member_label, "lead_label": org.lead_label}
+
+
+@router.get("/orgs/{org_id}/invites")
+def list_invites(org_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Invite links that still work: not revoked and not expired."""
+    membership(db, user, org_id, *LEADS)
+    rows = db.scalars(
+        select(Invitation).where(Invitation.org_id == org_id, Invitation.revoked.is_(False))
+        .order_by(Invitation.created_at.desc())
+    ).all()
+    current = now()
+    out = []
+    for i in rows:
+        if i.expires_at and i.expires_at < current:
+            continue
+        creator = db.get(User, i.created_by)
+        out.append({"code": i.code, "role": i.role, "expires_at": i.expires_at, "created_at": i.created_at,
+                    "created_by": creator.name if creator else ""})
+    return out
+
+
+@router.delete("/orgs/{org_id}/invites/{code}", status_code=204)
+def revoke_invite(org_id: str, code: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    me_ = membership(db, user, org_id, *LEADS)
+    invite = db.get(Invitation, code)
+    if invite is None or invite.org_id != org_id or invite.revoked:
+        raise HTTPException(404, "Invite not found")
+    # Leads can revoke member invites they made; admins can revoke any.
+    if Role(me_.role) != Role.admin and (invite.created_by != user.id or Role(invite.role) != Role.member):
+        raise HTTPException(403, "Only an admin can revoke that invite")
+    invite.revoked = True
+    audit(db, org_id, user, "invite.revoke", Role(invite.role).value)
+    db.commit()
 
 
 @router.get("/invites/{code}")
@@ -201,8 +257,15 @@ def notifications(user: User = Depends(current_user), db: Session = Depends(get_
     ]
 
 
+class ReadIn(BaseModel):
+    ids: list[str] | None = None  # omit to mark everything read
+
+
 @router.post("/notifications/read", status_code=204)
-def mark_read(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    for n in db.scalars(select(Notification).where(Notification.user_id == user.id, Notification.read_at.is_(None))):
+def mark_read(body: ReadIn | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    q = select(Notification).where(Notification.user_id == user.id, Notification.read_at.is_(None))
+    if body and body.ids is not None:
+        q = q.where(Notification.id.in_(body.ids))
+    for n in db.scalars(q):
         n.read_at = now()
     db.commit()
