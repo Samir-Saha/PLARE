@@ -115,7 +115,7 @@ export default function Study() {
       <section className="mb-10">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Your best study times this week</h2>
+            <h2 className="font-display text-xl font-bold tracking-[-0.01em]">Your best study times this week</h2>
             <p className="text-sm text-muted">
               {me.calendar_synced_at ? `Built around your Google Calendar (imported ${fmtDay(me.calendar_synced_at, me.timezone)}).` : "Connect Google Calendar and PLARE plans around your classes and commitments."}
             </p>
@@ -157,7 +157,7 @@ export default function Study() {
       </section>
 
       <section className="mb-10">
-        <h2 className="mb-1 font-display text-lg font-semibold tracking-[-0.01em]">Study together</h2>
+        <h2 className="mb-1 font-display text-xl font-bold tracking-[-0.01em]">Study together</h2>
         <p className="mb-3 text-sm text-muted">Two-hour windows when the most {org.member_label.toLowerCase()}s are free.</p>
         {group.error && <Notice>{group.error}</Notice>}
         {!group.data && !group.error && <Skeleton rows={2} />}
@@ -166,7 +166,7 @@ export default function Study() {
 
       {overview.data && overview.data.history.length > 0 && (
         <section>
-          <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Recent sessions</h2>
+          <h2 className="mb-3.5 font-display text-xl font-bold tracking-[-0.01em]">Recent sessions</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {overview.data.history.slice(0, 8).map((s) => (
               <li key={s.id} className="flex justify-between gap-3 px-4 py-3 text-sm tabular-nums">

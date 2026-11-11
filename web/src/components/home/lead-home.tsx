@@ -125,8 +125,8 @@ export function LeadHome() {
               <p className="mt-2 text-sm text-on-accent-muted">Loading…</p>
             ) : best ? (
               <>
-                <p className="mt-2 font-display text-lg font-semibold">{fmtDay(best.start, study.data.timezone)}, {fmtTime(best.start, study.data.timezone)}</p>
-                <p className="mt-0.5 text-[13px] text-on-accent-muted tabular-nums">{best.count} of {best.total} {member}s free · 2 hours</p>
+                <p className="mt-2 font-display text-[22px] font-bold">{fmtDay(best.start, study.data.timezone)}, {fmtTime(best.start, study.data.timezone)}</p>
+                <p className="mt-0.5 text-[14px] text-on-accent-muted tabular-nums">{best.count} of {best.total} {member}s free · 2 hours</p>
               </>
             ) : (
               <p className="mt-2 text-sm text-on-accent-muted">No shared 2-hour window yet. Ask people to add availability.</p>

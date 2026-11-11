@@ -11,7 +11,7 @@ import type { LogSummary } from "@/lib/api";
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
 
 function CountPill({ n, alert }: { n: number; alert?: boolean }) {
-  return <span className={`ml-auto rounded-full px-2 py-px text-[11px] font-semibold tabular-nums ${alert ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"}`}>{n}</span>;
+  return <span className={`ml-auto min-w-6 rounded-full px-2 py-px text-center text-[12px] font-bold tabular-nums ${alert ? "bg-danger text-surface" : "bg-accent-2 text-accent-2-fg"}`}>{n}</span>;
 }
 
 type Ctx = { me: Me; org: Org; isLead: boolean; refresh: () => Promise<void>; selectOrg: (id: string) => void };
@@ -151,8 +151,8 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
             const on = active(n.href);
             return (
               <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
-                className={`flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[14px] transition-colors duration-150 ${on ? "bg-accent font-semibold text-accent-fg" : "text-text hover:bg-surface"}`}>
-                <n.icon width={17} height={17} className={on ? "" : "text-muted"} />
+                className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-[15px] font-medium transition-colors duration-150 ${on ? "bg-accent font-bold text-accent-fg shadow-card" : "text-text hover:bg-accent-soft"}`}>
+                <n.icon width={19} height={19} className={on ? "" : "text-accent-2"} />
                 {n.label}
                 {n.count ? <CountPill n={n.count} alert={n.alert} /> : null}
               </Link>
@@ -164,8 +164,8 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
           <div className="flex items-center gap-2.5 px-2 pb-2">
             <Avatar name={me.name} className="size-8 text-[11px]" />
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold leading-tight">{me.name}</p>
-              <p className="truncate text-[11px] text-muted">{role}{me.is_demo ? " · demo" : ""}</p>
+              <p className="truncate text-[14px] font-bold leading-tight">{me.name}</p>
+              <p className="truncate text-[12px] font-medium text-muted">{role}{me.is_demo ? " · demo" : ""}</p>
             </div>
           </div>
           <ThemeToggle className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium!" />
@@ -187,16 +187,16 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
       </div>
 
       {/* Phones: compact bottom navigation above the home indicator. */}
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface/95 shadow-pop pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {nav.map((n) => {
           const on = active(n.href);
           return (
             <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
-              className={`relative flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] transition-colors duration-150 ${on ? "font-semibold text-accent" : "text-muted"}`}>
+              className={`relative flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[12px] transition-colors duration-150 ${on ? "font-bold text-accent" : "font-medium text-muted"}`}>
               <n.icon width={22} height={22} />
               <span className="max-w-full truncate px-0.5">{n.short ?? n.label}</span>
               {n.count ? (
-                <span className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 tabular-nums ${n.alert ? "bg-danger text-white" : "bg-accent text-accent-fg"}`}>
+                <span className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[11px] font-bold leading-4 tabular-nums ${n.alert ? "bg-danger text-surface" : "bg-accent text-accent-fg"}`}>
                   {n.count > 99 ? "99+" : n.count}
                 </span>
               ) : null}

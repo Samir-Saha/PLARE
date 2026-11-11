@@ -2,51 +2,63 @@
 
 /* Semantic tokens. Components only use these names, never raw colors. */
 :root {
-  --bg: #e9eef5;            /* page behind the app frame */
+  --bg: #dde5f0;            /* page behind the app frame */
   --surface: #ffffff;
-  --raised: #f5f8fc;        /* side rails, table headers, stat tiles */
-  --line: #e6ebf2;
-  --text: #0e1b2c;
-  --muted: #5a6577;
-  --accent: #0e2747;        /* navy: primary buttons, active nav, hero card */
+  --raised: #f1f5fb;        /* side rails, table headers, stat tiles */
+  --line: #cfd8e5;
+  --text: #0b1726;
+  --muted: #3d4a5e;
+  --accent: #0d2a52;        /* navy: primary buttons, active nav, hero card */
   --accent-fg: #ffffff;
-  --accent-soft: #dce8f7;   /* badges, light card, secondary buttons */
-  --accent-2: #2f5e9e;      /* mid blue card */
+  --accent-soft: #d3e3f8;   /* badges, light card, secondary buttons */
+  --accent-2: #2559a8;      /* mid blue card */
   --accent-2-fg: #ffffff;
-  --accent-3: #9dbce3;      /* light accent bars */
-  --on-accent-muted: #b9cce6; /* secondary text on navy */
-  --ok: #1e7b4f;
-  --ok-soft: #e6f4ec;
-  --warn: #a15c07;
-  --warn-soft: #fcf1de;
-  --danger: #b42318;
-  --danger-soft: #fce8e6;
-  --frame-shadow: 0 1px 2px rgb(14 39 71 / 0.04), 0 24px 64px -24px rgb(14 39 71 / 0.22);
+  --accent-3: #7fa8de;      /* light accent bars */
+  --on-accent-muted: #c9d9ef; /* secondary text on navy */
+  --ok: #15703f;
+  --ok-soft: #d9f2e3;
+  --warn: #8f4f00;
+  --warn-soft: #fde9c4;
+  --danger: #b01c10;
+  --danger-soft: #fddcd8;
+  --frame-shadow: 0 1px 2px rgb(13 42 82 / 0.06), 0 24px 64px -24px rgb(13 42 82 / 0.3);
+  --card-shadow: 0 1px 2px rgb(13 42 82 / 0.06), 0 4px 14px -6px rgb(13 42 82 / 0.14);
+  --pop-shadow: 0 2px 4px rgb(13 42 82 / 0.08), 0 14px 30px -12px rgb(13 42 82 / 0.35);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #0a1424;
-  --surface: #101d33;
-  --raised: #15253f;
-  --line: #22355a;
-  --text: #e6edf7;
-  --muted: #93a3bc;
-  --accent: #9dbce3;
-  --accent-fg: #0e2747;
-  --accent-soft: #1c3358;
-  --accent-2: #2f5e9e;
+  --bg: #070f1c;
+  --surface: #0f1c31;
+  --raised: #16273f;
+  --line: #2c4268;
+  --text: #f1f5fb;
+  --muted: #b3c1d6;
+  --accent: #a9c8f0;
+  --accent-fg: #0b1f3d;
+  --accent-soft: #1f3a64;
+  --accent-2: #3a6fc0;
   --accent-2-fg: #ffffff;
-  --accent-3: #4f7dba;
+  --accent-3: #5d8fd0;
   --on-accent-muted: #2a4570;
-  --ok: #5fd39b;
-  --ok-soft: #12301f;
-  --warn: #f0be5e;
-  --warn-soft: #35290f;
-  --danger: #ff8f86;
-  --danger-soft: #3d1c1f;
-  --frame-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 64px -24px rgb(0 0 0 / 0.6);
+  --ok: #6fe0a8;
+  --ok-soft: #133622;
+  --warn: #f7c96b;
+  --warn-soft: #3d2f10;
+  --danger: #ff9b92;
+  --danger-soft: #451d21;
+  --frame-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 24px 64px -24px rgb(0 0 0 / 0.7);
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px -8px rgb(0 0 0 / 0.6);
+  --pop-shadow: 0 2px 4px rgb(0 0 0 / 0.4), 0 14px 30px -12px rgb(0 0 0 / 0.8);
   color-scheme: dark;
+}
+
+/* Larger small text: Tailwind's 12px/14px defaults read too small in this UI. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
 }
 
 @theme inline {
@@ -70,6 +82,8 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --shadow-frame: var(--frame-shadow);
+  --shadow-card: var(--card-shadow);
+  --shadow-pop: var(--pop-shadow);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-display: var(--font-space-grotesk), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -78,6 +92,8 @@
 body {
   background: var(--bg);
   color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 h1, h2, h3 {
@@ -85,7 +101,7 @@ h1, h2, h3 {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid var(--accent-2);
   outline-offset: 2px;
 }
 
