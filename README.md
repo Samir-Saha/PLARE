@@ -3,6 +3,8 @@
 PLARE keeps a group's tasks, submissions, and schedules in one place. It was built for a 15-person Kappa Theta Pi pledge class, and the same app works for intern teams, study groups, class project groups, and clubs.
 
 - **Tasks and submissions.** Leads assign tasks with due dates and the proof they need (a note, a photo, or either). Members submit from their dashboard.
+- **Task reminders.** Assigned work gets a reminder within 24 hours, within 1 hour, and once overdue. Submitted and approved work is excluded. Reminders show in the app and use existing Web Push/quiet-hour settings when configured.
+- **Recurring templates.** Leads can create daily or weekly tasks from **Tasks → New task**, then pause, resume, or end templates. Each occurrence has its own submissions and review history.
 - **Review queue.** Every submission lands in one queue with the person, task, time, and photo. Leads approve or send it back with feedback, so nobody digs through a group chat.
 - **Phone notifications.** Web Push for every in-app notification, with quiet hours per person and no duplicate sends. Needs VAPID keys (see DEPLOY.md).
 - **BP photos taken in the app.** Tasks can require a photo taken with the camera inside PLARE, with no file picker. The server issues a one-time token when the photo is taken and accepts it for 10 minutes, and reviewers see "Taken in the app". This makes cheating harder but can't prove a photo is real: a browser can't rule out a faked camera.
@@ -122,11 +124,20 @@ web/
 ## Not built yet
 
 - A notification center page (the API has `GET /notifications`; today they show as push and in-app banners).
-- Due-soon and overdue task reminders, and alarm mode for important deadlines.
-- Recurring tasks.
+- Opt-in alarm mode for important deadlines.
 - Cloud file storage. Uploads are saved on the API server's disk, which is fine for a demo and should move to Supabase Storage before real use.
 - Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
 
 ## Ground rules
 
 PLARE is for coordination and accountability. It doesn't collect location, never turns on a camera by itself, and tells people who can see what they submit.
+
+## Task automation
+
+Open **Tasks** to submit assignments or claim open tasks. Leads/admins also see **New task** and **Recurring templates**. Select Daily or Weekly, choose a future first deadline, and optionally a final deadline. Input dates use your device's timezone, which is saved with the template. Repeats keep the same local time across daylight-saving changes; a time in the spring gap shifts forward through the gap, and a repeated fall time uses the first occurrence.
+
+The first task is created immediately. The minute scheduler creates the next task after the previous deadline, even if earlier work still needs review. After downtime or a pause it skips missed cycles and creates just the next future task. All-members templates use the current member list; selected-user templates exclude people who have left. Ending a template is permanent and does not remove tasks already created.
+
+Deadline reminders are once per assignment/deadline/window. A delayed scheduler sends only the current window, rather than a burst of missed reminders. Submitting work clears its unread reminders. Phone pushes require VAPID keys; quiet hours suppress phone delivery while the reminder remains available in the app. Dismissing a reminder leaves the task unchanged.
+
+Both features use the existing `RUN_REMINDERS=true` loop or authenticated `POST /cron/tick` (see [DEPLOY.md](DEPLOY.md)). Persistence uses new tables only: normal startup `create_all` adds them to an existing SQLite or Postgres database without rewriting task or submission tables. No additional worker service or production dependency is needed.

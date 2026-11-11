@@ -132,6 +132,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
   // rather than linking to a 404.
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
+    { href: "/app/tasks", label: "Tasks", icon: IconNote },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
     { href: "/app/gm", label: "GM messages", short: "GM", icon: IconSun, count: gmAlerts.data || undefined, alert: true },
     { href: "/app/bp", label: "BP check-in", short: "BP", icon: IconCamera },
@@ -225,7 +226,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
 }
 
 /**
- * In-app GM reminder. Checks once a minute (and after navigation or sending a GM) for unread
+ * In-app task and GM reminders. Checks once a minute (and after navigation or sending a GM) for unread
  * reminders the API created, and always has a dismiss button.
  */
 function GmReminderBanner() {
@@ -235,7 +236,7 @@ function GmReminderBanner() {
   useEffect(() => {
     let live = true;
     const load = () => api<AppNotification[]>("/notifications")
-      .then((all) => live && setNotes(all.filter((n) => n.category === "gm" && !n.read)))
+      .then((all) => live && setNotes(all.filter((n) => (n.category === "gm" || n.category === "task_reminder") && !n.read)))
       .catch(() => {});
     load();
     const id = setInterval(load, 60_000);
@@ -250,14 +251,15 @@ function GmReminderBanner() {
   const note = notes[0];
   if (!note) return null;
   const dismiss = () => {
-    setNotes([]);
-    post("/notifications/read", { ids: notes.map((n) => n.id) }).catch(() => {});
+    post("/notifications/read", { ids: [note.id] }).then(() => {
+      setNotes((all) => all.filter((n) => n.id !== note.id));
+    }).catch(() => {});
   };
   return (
     <div role="status" className="flex items-center gap-3 border-b border-gold/30 bg-gold-soft px-4 py-2.5 text-sm text-text md:px-10">
       <IconSun width={18} height={18} className="shrink-0 text-gold-ink" />
       <p className="min-w-0 flex-1"><span className="font-semibold">{note.title}.</span> <span className="text-muted">{note.body}</span></p>
-      {pathname !== note.link && note.link && <Link href={note.link} className="shrink-0 font-semibold text-accent underline underline-offset-2">Send it</Link>}
+      {pathname !== note.link && note.link && <Link href={note.link} className="shrink-0 font-semibold text-accent underline underline-offset-2">{note.category === "gm" ? "Send it" : "View task"}</Link>}
       <button type="button" onClick={dismiss} aria-label="Dismiss reminder" className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-raised hover:text-text">
         <IconClose width={16} height={16} />
       </button>

@@ -12,6 +12,7 @@ from ..auth import LEADS, audit, current_user, membership, notify
 from ..config import get_settings
 from ..db import get_db, now
 from ..models import Assignment, CaptureToken, Membership, Role, Submission, SubmissionCheck, Task, TaskStatus, User, uid
+from ..task_automation import clear_task_reminders
 
 router = APIRouter()
 
@@ -101,7 +102,7 @@ def create_task(org_id: str, body: TaskIn, user: User = Depends(current_user), d
         targets = []
     for user_id in targets:
         db.add(Assignment(task_id=task.id, org_id=org_id, user_id=user_id))
-        notify(db, user_id, org_id, "task", f"New task: {task.title}", link="/app")
+        notify(db, user_id, org_id, "task", f"New task: {task.title}"[:200], link=f"/app/tasks?org={org_id}")
     audit(db, org_id, user, "task.create", task.title)
     db.commit()
     return {"id": task.id, "assigned": len(targets)}
@@ -238,6 +239,7 @@ async def submit(
     status = ai_check.initial_status(ai_check.checkable_text(text, data, file_type))
     db.add(SubmissionCheck(submission_id=sub.id, captured_at=t if token is not None else None, ai_status=status))
     a.status = TaskStatus.submitted
+    clear_task_reminders(db, a.id)
     for m in db.scalars(select(Membership).where(Membership.org_id == a.org_id, Membership.role.in_(LEADS))):
         notify(db, m.user_id, a.org_id, "review", f"{user.name} submitted {a.task.title}", link="/app/review")
     db.commit()
@@ -296,7 +298,7 @@ def review(submission_id: str, body: ReviewIn, user: User = Depends(current_user
     a.status = TaskStatus(body.decision)
     a.completed_at = now() if body.decision == "approved" else None
     verdict = "approved" if body.decision == "approved" else "needs a revision"
-    notify(db, s.user_id, s.org_id, "review", f"{a.task.title} {verdict}", body=s.feedback, link="/app")
+    notify(db, s.user_id, s.org_id, "review", f"{a.task.title} {verdict}"[:200], body=s.feedback, link=f"/app/tasks?org={s.org_id}")
     audit(db, s.org_id, user, f"submission.{body.decision}", s.id)
     db.commit()
     return _submission(s, db.get(SubmissionCheck, s.id))

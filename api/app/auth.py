@@ -75,7 +75,9 @@ LEADS = (Role.admin, Role.lead)
 
 
 def notify(db: Session, user_id: str, org_id: str | None, category: str, title: str, body: str = "", link: str = ""):
-    db.add(Notification(user_id=user_id, org_id=org_id, category=category, title=title, body=body, link=link))
+    notification = Notification(user_id=user_id, org_id=org_id, category=category, title=title, body=body, link=link)
+    db.add(notification)
+    return notification
 
 
 def audit(db: Session, org_id: str, actor: User, action: str, detail: str = ""):
