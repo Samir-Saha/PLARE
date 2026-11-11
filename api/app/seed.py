@@ -113,7 +113,7 @@ def _seed_core() -> bool:
 
         t = now()
         specs = [
-            ("BP post: week 6", "BP Posts", "Post this week's brother-pledge photo.", t + timedelta(days=2), "photo", "normal"),
+            ("BP post: week 6", "BP Posts", "Take this week's photo in business professional with the in-app camera.", t + timedelta(days=2), "camera", "normal"),
             ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", t + timedelta(days=5), "none", "normal"),
             ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", t + timedelta(days=3), "any", "normal"),
             ("Interview a brother", "General Requirements", "Coffee chat notes with one active brother.", t - timedelta(days=1), "text", "low"),
