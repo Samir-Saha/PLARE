@@ -48,7 +48,7 @@ export function MemberGm() {
       {d && !d.enabled && <Empty title="GM messages are off">Your NME turned GM messages off for this group.</Empty>}
 
       {d?.enabled && !d.today && (
-        <section aria-label="Today's code word" className="mb-6 max-w-xl rounded-[18px] bg-accent px-5 py-4 text-accent-fg">
+        <section aria-label="Today's code word" className="mb-6 max-w-xl rounded-2xl bg-accent px-5 py-4 text-accent-fg">
           <p className="text-[13px] text-on-accent-muted">Today&apos;s code word</p>
           {d.code
             ? <p className="mt-1 font-mono text-2xl font-semibold tracking-wide">{d.code}</p>

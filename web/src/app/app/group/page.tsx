@@ -142,7 +142,7 @@ function MembersTab({ org, meId, tz, members, onChanged }: {
       {shown.length === 0 ? (
         <Empty title="No one matches">Try a different name or role.</Empty>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {shown.map((m) => {
             const canManage = isAdmin && m.user_id !== meId && m.role !== "admin";
             return (
@@ -225,7 +225,7 @@ function InvitesTab({ org, tz, invites, onNew }: { org: Org; tz: string; invites
     );
 
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
+    <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
       {invites.data.map((i) => (
         <li key={i.code} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 sm:px-4">
           <div className="min-w-0 flex-1 basis-60">

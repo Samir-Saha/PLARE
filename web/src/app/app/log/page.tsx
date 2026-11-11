@@ -112,7 +112,7 @@ function LogList({ entries, showName, member, onRemove }: { entries: LogEntry[];
     <>
       {sections.map((sec) => (
         <section key={sec.title} aria-label={sec.title} className="mb-6">
-          <h2 className="mb-2.5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+          <h2 className="mb-2.5 flex items-center gap-3 text-xs font-semibold text-muted">
             {sec.title}<span aria-hidden className="h-px flex-1 bg-line" />
           </h2>
           <ul className="space-y-2.5">

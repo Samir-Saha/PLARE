@@ -137,7 +137,7 @@ function LeadBp() {
 
 function Tile({ t, tz }: { t: BpTile; tz: string }) {
   return (
-    <li className={`overflow-hidden rounded-[18px] border bg-surface ${t.status === "late" || t.status === "missing" ? "border-danger" : "border-line"}`}>
+    <li className={`overflow-hidden rounded-2xl border bg-surface ${t.status === "late" || t.status === "missing" ? "border-danger" : "border-line"}`}>
       {t.checkin
         ? <Photo id={t.checkin.id} alt={`${t.name}'s BP`} square />
         : <div className="flex aspect-square items-center justify-center bg-raised text-sm text-muted">{t.status === "missing" ? "No photo" : "Not in yet"}</div>}

@@ -180,7 +180,7 @@ export default function Study() {
       {overview.data && overview.data.history.length > 0 && (
         <section>
           <h2 className="mb-3.5 font-display text-xl font-bold tracking-[-0.01em]">Recent sessions</h2>
-          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {overview.data.history.slice(0, 8).map((s) => (
               <li key={s.id} className="flex justify-between gap-3 px-4 py-3 text-sm tabular-nums">
                 <span>{fmtDay(s.started_at, me.timezone)}, {fmtTime(s.started_at, me.timezone)}</span>
