@@ -30,3 +30,13 @@ services:
       # Free Hugging Face token for the AI-writing check. Leave unset and reviewers see "AI check not set up".
       - key: HF_TOKEN
         sync: false
+      # Web Push. Generate with `python -m app.push keys`. Leave unset and push shows "not set up".
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      # Secret for POST /cron/tick, so an outside scheduler can wake the free-plan server every minute.
+      - key: CRON_SECRET
+        sync: false

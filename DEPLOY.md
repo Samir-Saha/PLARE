@@ -52,6 +52,13 @@ The app creates its database tables on first start and, with `DEMO_AUTH=true`, a
 - Click **Continue with Google** with an account on your test-user list.
 - **On your phone:** open the URL. On iPhone, tap Share → **Add to Home Screen** in Safari. On Android, tap **Install app** in Chrome.
 
+## 6. Optional: notifications, AI check, and CI
+
+- **Phone notifications (Web Push).** On your computer, run `cd api && python -m app.push keys`. On Render, set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to the two values, and `VAPID_SUBJECT` to `mailto:` plus your email. Keep the private key secret. Then each person turns notifications on under **Notifications** in the app. On iPhone, they have to add PLARE to the Home Screen first.
+- **Keep reminders on time.** Render's free plan sleeps after 15 minutes, and a sleeping server sends nothing: no GM reminders, BP check-ins, or pushes. Set `CRON_SECRET` on Render to a long random string. Then create a free job at [cron-job.org](https://cron-job.org) that sends `POST https://<your-render-url>/cron/tick` every minute, with the header `X-Cron-Secret: <the same string>`. If the server was asleep through a whole BP check-in, the check-in is marked "not sent" and nothing is logged.
+- **AI-writing check.** Create a free account at huggingface.co, go to Settings → Access Tokens, create a **Read** token, and set it as `HF_TOKEN` on Render. Without it, reviewers see "AI check not set up".
+- **Only deploy green builds.** GitHub Actions runs the tests and the web build on every push (`.github/workflows/ci.yml`). In Render (Settings → Build & Deploy → Auto-Deploy) choose **After CI Checks Pass**. Vercel waits for checks if you protect `main` with a required "CI" status check in GitHub's branch settings.
+
 ## Before a demo
 
 - **Wake the API.** Render's free tier sleeps after 15 minutes without traffic, and the first request then takes up to a minute. Open `https://<your-render-url>/health` a few minutes before presenting.
@@ -67,3 +74,5 @@ The app creates its database tables on first start and, with `DEMO_AUTH=true`, a
 | Google says `redirect_uri_mismatch` | The Google client's redirect URI must be exactly `https://cswawrqsrbmnenhtaytp.supabase.co/auth/v1/callback`. |
 | Google says access blocked | The account isn't on the test-user list (Google Auth Platform → Audience). |
 | "Sign in required" right after Google sign-in | `SUPABASE_URL` is missing on Render. |
+| Notifications page says push isn't set up | `VAPID_PUBLIC_KEY` or `VAPID_PRIVATE_KEY` is missing on Render. |
+| Notifications are on but nothing arrives | The server is asleep. Set up the cron job in step 6, or check quiet hours on the Notifications page. |
