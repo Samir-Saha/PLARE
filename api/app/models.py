@@ -502,7 +502,7 @@ class BpSettings(Base):
     __tablename__ = "bp_settings"
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    due_minute: Mapped[int] = mapped_column(Integer, default=22 * 60)  # minutes after local midnight
+    due_minute: Mapped[int] = mapped_column(Integer, default=9 * 60 + 30)  # minutes after local midnight (9:30 AM)
     timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
 
 

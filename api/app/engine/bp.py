@@ -10,7 +10,7 @@ from datetime import date, datetime
 
 from .gm import due_at, local_day
 
-DEFAULT_DUE_MINUTE = 22 * 60  # 10:00 PM local
+DEFAULT_DUE_MINUTE = 9 * 60 + 30  # 9:30 AM local
 
 __all__ = ["DEFAULT_DUE_MINUTE", "due_at", "local_day", "status", "counts"]
 
