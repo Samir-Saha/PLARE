@@ -156,7 +156,7 @@ export default function Schedule() {
 
       <section className="mb-10">
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Best times for {org.name}</h2>
+          <h2 className="font-display text-xl font-bold tracking-[-0.01em]">Best times for {org.name}</h2>
           <label className="text-sm text-muted">
             Length{" "}
             <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="rounded-xl border border-line bg-surface px-2.5 py-1.5 text-sm text-text">
@@ -172,7 +172,7 @@ export default function Schedule() {
       <section className="min-w-0">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Your weekly availability</h2>
+            <h2 className="font-display text-xl font-bold tracking-[-0.01em]">Your weekly availability</h2>
             <p className="text-sm text-muted">Tap or drag over the times you&apos;re usually free. Calendar busy time is removed automatically.</p>
           </div>
           <Button variant="primary" onClick={save} busy={saving} disabled={!dirty}>Save availability</Button>
@@ -185,7 +185,7 @@ export default function Schedule() {
               {DAYS.map((d) => <div key={d} className="pb-1 text-center font-medium text-muted">{d}</div>)}
               {Array.from({ length: ROWS }, (_, row) => (
                 <div key={row} className="contents">
-                  <div className="pr-1 text-right text-[10px] leading-5 text-muted">{row % 2 === 0 ? label(row) : ""}</div>
+                  <div className="pr-1 text-right text-[11px] leading-5 text-muted">{row % 2 === 0 ? label(row) : ""}</div>
                   {DAYS.map((d, day) => {
                     const key = `${day}-${row}`;
                     const on = cells.has(key);

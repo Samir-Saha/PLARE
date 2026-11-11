@@ -49,7 +49,7 @@ export default function Home() {
           </p>
         </div>
         <Card className="space-y-3">
-          <h2 className="text-lg font-semibold">Sign in</h2>
+          <h2 className="text-xl font-bold">Sign in</h2>
           {error && <Notice>{error}</Notice>}
           {supabase ? (
             <Button variant="primary" className="w-full" onClick={() => signInWithGoogle().catch((e) => setError(e.message))}>

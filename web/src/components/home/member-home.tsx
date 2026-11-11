@@ -59,7 +59,7 @@ export function MemberHome() {
       {!tasks.data && !tasks.error && <div className="mb-8"><Skeleton rows={1} /></div>}
       {tasks.data && (
         <section aria-label="Requirements progress" className="mb-8 rounded-[22px] bg-accent px-5 pb-6 pt-5 text-accent-fg sm:max-w-xl">
-          <div className="flex items-center justify-between gap-3 text-[13px] text-on-accent-muted">
+          <div className="flex items-center justify-between gap-3 text-[14px] text-on-accent-muted">
             <span>Approved{nextDue ? ` · next due ${fmtShortDay(nextDue.due_at!, me.timezone)}` : ""}</span>
             {overdueCount > 0
               ? <span className="tabular-nums">{overdueCount} overdue</span>
@@ -70,7 +70,7 @@ export function MemberHome() {
               <span className="text-[44px] font-bold leading-none">{done}</span>
               <span className="ml-2 text-xl text-on-accent-muted">/ {all.length}</span>
             </p>
-            {pending > 0 && <span className="mb-1 rounded-full bg-accent-fg/15 px-3.5 py-1.5 text-[13px] font-medium tabular-nums">+{pending} pending</span>}
+            {pending > 0 && <span className="mb-1 rounded-full bg-accent-fg/15 px-3.5 py-1.5 text-[14px] font-medium tabular-nums">+{pending} pending</span>}
           </div>
           <div className="mt-5">
             <Progress value={all.length ? (done / all.length) * 100 : 0} label="Requirements approved" track="bg-on-accent-muted/30" fill="bg-accent-fg" className="h-1.5" />
@@ -96,7 +96,7 @@ export function MemberHome() {
           )}
           <ListRow bar="mid" end={<ButtonLink href="/app/study" className="min-h-10 px-5">{s?.active ? "Resume" : "Join"}</ButtonLink>}>
             <p className="text-[15px] font-semibold leading-snug">Study hours</p>
-            <p className="mt-0.5 text-[13px] text-muted tabular-nums">
+            <p className="mt-0.5 text-[14px] text-muted tabular-nums">
               {s ? `${fmtDuration(s.week_seconds)} this week${s.active ? ` · session ${s.active.state === "paused" ? "paused" : "running"}` : ""}` : study.error || "Loading…"}
             </p>
           </ListRow>
@@ -105,7 +105,7 @@ export function MemberHome() {
               ? <CheckMark label="You're going" />
               : <CheckLink href="/app/schedule" label={`RSVP for ${nextMeeting.title}`} />}>
               <p className="text-[15px] font-semibold leading-snug">{nextMeeting.title}</p>
-              <p className="mt-0.5 text-[13px] text-muted">
+              <p className="mt-0.5 text-[14px] text-muted">
                 {fmtShortDay(nextMeeting.start_at, me.timezone)}, {fmtTime(nextMeeting.start_at, me.timezone)}
                 {nextMeeting.location ? ` · ${nextMeeting.location}` : ""} · {nextMeeting.my_response === "yes" ? "you're going" : "RSVP on Calendar"}
               </p>
@@ -131,7 +131,7 @@ export function MemberHome() {
               <span className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{e.automatic ? "Auto" : "Added"}</span>
             }>
               <p className="text-[15px] font-semibold leading-snug">{e.label}</p>
-              <p className="mt-0.5 truncate text-[13px] text-muted tabular-nums">{fmtShortDay(e.created_at, LOG_TZ)} · {e.detail}</p>
+              <p className="mt-0.5 truncate text-[14px] text-muted tabular-nums">{fmtShortDay(e.created_at, LOG_TZ)} · {e.detail}</p>
             </ListRow>
           ))}
         </ul>

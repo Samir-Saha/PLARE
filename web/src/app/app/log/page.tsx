@@ -24,7 +24,7 @@ function EntryRow({ e, showName, onRemove }: { e: LogEntry; showName: boolean; o
         <p className="text-[15px] font-semibold leading-snug">{e.label}</p>
         <Badge tone={e.automatic ? "neutral" : "accent"}>{e.automatic ? "Automatic" : `Added by ${e.created_by_name ?? "a brother"}`}</Badge>
       </div>
-      {e.detail && <p className="mt-0.5 text-[13px] leading-snug">{e.detail}</p>}
+      {e.detail && <p className="mt-0.5 text-[14px] leading-snug">{e.detail}</p>}
       <p className="mt-1 text-xs text-muted tabular-nums">
         {showName && <>{e.user_name} · </>}
         <time dateTime={e.created_at}>{fmtShortDay(e.created_at, LOG_TZ)}, {fmtTime(e.created_at, LOG_TZ)}</time>
@@ -80,7 +80,7 @@ function LeadLog() {
               <li key={p.user_id} className="shrink-0">
                 <button type="button" aria-pressed={on} onClick={() => setWho(on ? "" : p.user_id)}
                   className={`flex min-h-11 items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors ${on ? "border-accent bg-accent text-accent-fg" : "border-line bg-surface hover:bg-raised"}`}>
-                  <Avatar name={p.name} className="size-8 text-[11px]" />
+                  <Avatar name={p.name} className="size-8 text-[12px]" />
                   <span className="font-medium">{p.name.split(" ")[0]}</span>
                   <span className={`min-w-6 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${on ? "bg-accent-fg/15" : p.count ? "bg-accent-soft text-accent" : "text-muted"}`}>{p.count}</span>
                 </button>
