@@ -428,3 +428,30 @@ class RoomMessage(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
     user: Mapped[User] = relationship()
+
+
+class BpSettings(Base):
+    """A group's BP check-in rules. The deadline is in `timezone`."""
+
+    __tablename__ = "bp_settings"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    due_minute: Mapped[int] = mapped_column(Integer, default=22 * 60)  # minutes after local midnight
+    timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
+
+
+class BpCheckin(Base):
+    """One BP photo per member per day, taken in the app and timestamped by the server."""
+
+    __tablename__ = "bp_checkins"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD in the group's timezone
+    caption: Mapped[str] = mapped_column(String(280), default="")
+    file_path: Mapped[str] = mapped_column(String(255))
+    file_type: Mapped[str] = mapped_column(String(32))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)  # deadline when it was taken
+    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship()
