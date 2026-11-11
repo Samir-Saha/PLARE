@@ -36,9 +36,9 @@ def _pdf(text: str) -> bytes:
 
 
 @pytest.fixture
-def gptzero(monkeypatch):
+def detector(monkeypatch):
     """Turn the AI check on with a fake detector. Returns the list of texts it was sent."""
-    monkeypatch.setattr(get_settings(), "gptzero_api_key", "test-key")
+    monkeypatch.setattr(get_settings(), "hf_token", "test-token")
     sent: list[str] = []
 
     def fake(text, key):
@@ -133,10 +133,10 @@ def test_ai_check_not_configured_without_key(client, world):
     row = queue(client, world)[0]
     assert (row["ai_status"], row["ai_score"]) == ("not_configured", None)
     r = client.post(f"/submissions/{row['id']}/ai-check", headers=as_user("lead@t.demo"))
-    assert r.status_code == 409 and "GPTZERO_API_KEY" in r.json()["detail"]
+    assert r.status_code == 409 and "HF_TOKEN" in r.json()["detail"]
 
 
-def test_ai_score_shown_to_reviewers_and_submitter_only(client, world, gptzero):
+def test_ai_score_shown_to_reviewers_and_submitter_only(client, world, detector):
     make_task(client, world, evidence="any")
     a = mine(client, world)[0]
     assert a["ai_check_on"] is True
@@ -144,7 +144,7 @@ def test_ai_score_shown_to_reviewers_and_submitter_only(client, world, gptzero):
                 files={"file": ("slides.pdf", _pdf("Slide one: our capstone architecture"), "application/pdf")},
                 headers=as_user("m1@t.demo"))
     # The note and the PDF's text were both checked.
-    assert len(gptzero) == 1 and "capstone architecture" in gptzero[0] and "what I built" in gptzero[0]
+    assert len(detector) == 1 and "capstone architecture" in detector[0] and "what I built" in detector[0]
     row = queue(client, world)[0]
     assert (row["ai_status"], row["ai_score"], row["ai_label"]) == ("done", 0.91, "ai")
     # The submitter sees their own result.
@@ -161,28 +161,28 @@ def test_ai_score_shown_to_reviewers_and_submitter_only(client, world, gptzero):
     assert client.post(f"/submissions/{row['id']}/ai-check", headers=as_user("lead@t.demo")).status_code == 409
 
 
-def test_short_text_and_photos_are_not_sent(client, world, gptzero):
+def test_short_text_and_photos_are_not_sent(client, world, detector):
     make_task(client, world, evidence="any")
     for who, kwargs in (("m1", {"data": {"text": "Done!"}}), ("m2", {"files": {"file": ("x.png", PNG, "image/png")}})):
         a = mine(client, world, who)[0]
         client.post(f"/assignments/{a['id']}/submissions", headers=as_user(f"{who}@t.demo"), **kwargs)
     statuses = {r["user_name"]: r["ai_status"] for r in queue(client, world)}
     assert statuses == {"m1": "too_short", "m2": "skipped"}
-    assert gptzero == []
+    assert detector == []
 
 
 def test_ai_check_error_can_be_rerun(client, world, monkeypatch):
-    monkeypatch.setattr(get_settings(), "gptzero_api_key", "test-key")
+    monkeypatch.setattr(get_settings(), "hf_token", "test-token")
 
     def down(text, key):
-        raise ai_check.DetectorError("GPTZero didn't respond. Run the check again.")
+        raise ai_check.DetectorError("The detector didn't respond. Run the check again.")
 
     monkeypatch.setattr(ai_check, "detect", down)
     make_task(client, world, evidence="text")
     a = mine(client, world)[0]
     client.post(f"/assignments/{a['id']}/submissions", data={"text": LONG}, headers=as_user("m1@t.demo"))
     row = queue(client, world)[0]
-    assert (row["ai_status"], row["ai_error"]) == ("error", "GPTZero didn't respond. Run the check again.")
+    assert (row["ai_status"], row["ai_error"]) == ("error", "The detector didn't respond. Run the check again.")
 
     monkeypatch.setattr(ai_check, "detect", lambda text, key: (0.04, "human"))
     r = client.post(f"/submissions/{row['id']}/ai-check", headers=as_user("lead@t.demo"))
@@ -191,16 +191,44 @@ def test_ai_check_error_can_be_rerun(client, world, monkeypatch):
     assert (row["ai_status"], row["ai_score"], row["ai_error"]) == ("done", 0.04, "")
 
 
-def test_detect_parses_gptzero_and_reports_errors(monkeypatch):
-    def respond(status, body):
-        return lambda *a, **k: httpx.Response(status, json=body, request=httpx.Request("POST", ai_check.GPTZERO_URL))
+def _respond(status, body):
+    return lambda *a, **k: httpx.Response(status, json=body, request=httpx.Request("POST", "https://router.huggingface.co"))
 
-    monkeypatch.setattr(httpx, "post", respond(200, {"documents": [
-        {"class_probabilities": {"ai": 0.7, "human": 0.2, "mixed": 0.1}, "predicted_class": "ai"}]}))
-    assert ai_check.detect("text", "k") == (0.7, "ai")
-    monkeypatch.setattr(httpx, "post", respond(200, {"documents": [{"completely_generated_prob": 0.2}]}))
-    assert ai_check.detect("text", "k") == (0.2, None)
-    for status, words in ((401, "API key"), (429, "limit"), (500, "error"), (200, "couldn't read")):
-        monkeypatch.setattr(httpx, "post", respond(status, {} if status == 200 else {"error": "x"}))
+
+def test_detect_reads_common_detector_labels(monkeypatch):
+    for body, expected in (
+        ([[{"label": "ChatGPT", "score": 0.8}, {"label": "Human", "score": 0.2}]], 0.8),  # chatgpt-detector-roberta
+        ([{"label": "Real", "score": 0.9}, {"label": "Fake", "score": 0.1}], 0.1),         # roberta-base-openai-detector
+        ([[{"label": "human", "score": 0.75}]], 0.25),                                      # only the human score
+    ):
+        monkeypatch.setattr(httpx, "post", _respond(200, body))
+        score, label = ai_check.detect("Some text to check.", "t")
+        assert score == pytest.approx(expected) and label == ("ai" if expected >= 0.5 else "human")
+
+
+def test_long_text_is_scored_in_weighted_pieces(monkeypatch):
+    text = ("word " * 400).strip() + " " + ("other " * 100).strip()
+    pieces = ai_check.chunks(text)
+    assert len(pieces) == 2 and all(len(p) <= ai_check.CHUNK_CHARS for p in pieces)
+    assert len(ai_check.chunks("x " * 50_000)) == ai_check.MAX_CHUNKS
+    calls = iter([1.0, 0.0])
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: httpx.Response(
+        200, json=[{"label": "Fake", "score": next(calls)}], request=httpx.Request("POST", "https://x")))
+    score, _ = ai_check.detect(text, "t")
+    expected = len(pieces[0]) / (len(pieces[0]) + len(pieces[1]))
+    assert score == pytest.approx(expected)
+
+
+def test_detect_reports_errors_plainly(monkeypatch):
+    for status, words in ((401, "token"), (402, "credits"), (404, "HF_AI_DETECTOR_MODEL"), (429, "rate limit"),
+                          (503, "starting up"), (500, "error"), (200, "couldn't read")):
+        monkeypatch.setattr(httpx, "post", _respond(status, [{"label": "???", "score": 1}] if status == 200 else {"error": "x"}))
         with pytest.raises(ai_check.DetectorError, match=words):
-            ai_check.detect("text", "k")
+            ai_check.detect("text", "t")
+
+    def offline(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(httpx, "post", offline)
+    with pytest.raises(ai_check.DetectorError, match="didn't respond"):
+        ai_check.detect("text", "t")

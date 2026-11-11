@@ -50,7 +50,7 @@ def _overdue(task: Task, status: str) -> bool:
 
 def _ai_check_on(evidence: str) -> bool:
     """Whether written work on this task is sent to the AI check, so the form can say so."""
-    return bool(ai_check.get_settings().gptzero_api_key) and evidence in ("any", "text")
+    return bool(ai_check.get_settings().hf_token) and evidence in ("any", "text")
 
 
 def _assignment(a: Assignment, latest: Submission | None = None, check: SubmissionCheck | None = None) -> dict:
@@ -325,7 +325,7 @@ def rerun_ai_check(submission_id: str, background: BackgroundTasks, user: User =
         data = path.read_bytes() if path.is_file() else None
     status = ai_check.initial_status(ai_check.checkable_text(s.text, data, s.file_type))
     if status == "not_configured":
-        raise HTTPException(409, "The AI check isn't set up. Add GPTZERO_API_KEY on the server, then try again.")
+        raise HTTPException(409, "The AI check isn't set up. Add HF_TOKEN on the server, then try again.")
     check.ai_status, check.ai_error = status, ""
     db.commit()
     if status == "pending":

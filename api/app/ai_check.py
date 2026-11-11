@@ -1,11 +1,12 @@
-"""AI-writing check for submissions, using GPTZero.
+"""AI-writing check for submissions, using a free open-source detector on Hugging Face.
 
 The score is a signal for the reviewer, not a verdict. Detectors misjudge human writing
-(especially by non-native English speakers), so the result is only shown in the review
+(especially by non-native English speakers), and the free models were trained on older AI
+models, so they miss a lot of current AI writing. The result is only shown in the review
 queue and to the person who submitted. It never notifies anyone, never writes to the
 accountability log, and never changes a submission's status.
 
-Without GPTZERO_API_KEY the check records "not_configured" instead of guessing.
+Without HF_TOKEN the check records "not_configured" instead of guessing.
 """
 from __future__ import annotations
 
@@ -21,11 +22,17 @@ from .models import Submission, SubmissionCheck
 
 logger = logging.getLogger("plare.ai_check")
 
-GPTZERO_URL = "https://api.gptzero.me/v2/predict/text"
-# GPTZero is unreliable on short text, so anything shorter isn't sent.
+HF_URL = "https://router.huggingface.co/hf-inference/models/{model}"
+# Short text gives meaningless scores, so anything shorter isn't sent.
 MIN_CHARS = 250
 MAX_CHARS = 50_000
+# The detector reads about 512 tokens at a time, so longer work is scored in pieces.
+CHUNK_CHARS = 1500
+MAX_CHUNKS = 6
 TIMEOUT_SECONDS = 30
+# Model labels that mean "AI-written" and "human-written", lowercased. Covers the common detectors.
+AI_LABELS = {"chatgpt", "fake", "ai", "machine", "generated", "ai-generated", "machine-generated"}
+HUMAN_LABELS = {"human", "real", "human-written"}
 
 
 class DetectorError(Exception):
@@ -51,35 +58,78 @@ def checkable_text(note: str, file_bytes: bytes | None, file_type: str | None) -
     return "\n\n".join(p for p in parts if p)[:MAX_CHARS]
 
 
-def detect(text: str, api_key: str) -> tuple[float, str | None]:
-    """Ask GPTZero how likely `text` is AI-written. Returns (probability 0..1, predicted class)."""
+def chunks(text: str) -> list[str]:
+    """Split text into detector-sized pieces at word boundaries, keeping at most MAX_CHUNKS."""
+    out, rest = [], text.strip()
+    while rest and len(out) < MAX_CHUNKS:
+        if len(rest) <= CHUNK_CHARS:
+            out.append(rest)
+            break
+        cut = rest.rfind(" ", 0, CHUNK_CHARS)
+        cut = cut if cut > CHUNK_CHARS // 2 else CHUNK_CHARS
+        out.append(rest[:cut].strip())
+        rest = rest[cut:].strip()
+    return out
+
+
+def _ai_probability(body) -> float:
+    """Read the AI probability from a text-classification response: [[{label, score}]] or [{label, score}]."""
+    rows = body[0] if body and isinstance(body[0], list) else body
+    scores = {str(r["label"]).lower(): float(r["score"]) for r in rows}
+    for label, score in scores.items():
+        if label in AI_LABELS:
+            return score
+    for label, score in scores.items():
+        if label in HUMAN_LABELS:
+            return 1.0 - score
+    raise ValueError(f"unknown labels {sorted(scores)}")
+
+
+def _score_chunk(text: str, token: str, model: str) -> float:
     try:
         res = httpx.post(
-            GPTZERO_URL, json={"document": text}, timeout=TIMEOUT_SECONDS,
-            headers={"x-api-key": api_key, "Accept": "application/json"},
+            HF_URL.format(model=model), json={"inputs": text}, timeout=TIMEOUT_SECONDS,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         )
     except httpx.HTTPError as e:
-        raise DetectorError("GPTZero didn't respond. Run the check again.") from e
+        raise DetectorError("Hugging Face didn't respond. Run the check again.") from e
     if res.status_code in (401, 403):
-        raise DetectorError("GPTZero rejected the API key. Check GPTZERO_API_KEY on the server.")
+        raise DetectorError("Hugging Face rejected the token. Check HF_TOKEN on the server.")
+    if res.status_code == 402:
+        raise DetectorError("This month's free Hugging Face credits are used up. Run the check again next month.")
+    if res.status_code == 404:
+        raise DetectorError(f"The detector model {model} isn't available. Check HF_AI_DETECTOR_MODEL on the server.")
     if res.status_code == 429:
-        raise DetectorError("GPTZero's usage limit was reached. Run the check again later.")
+        raise DetectorError("Hugging Face's rate limit was reached. Run the check again in a few minutes.")
+    if res.status_code == 503:
+        raise DetectorError("The detector is starting up. Run the check again in a minute.")
     if res.status_code >= 400:
-        raise DetectorError(f"GPTZero returned an error ({res.status_code}). Run the check again.")
+        raise DetectorError(f"Hugging Face returned an error ({res.status_code}). Run the check again.")
     try:
-        doc = res.json()["documents"][0]
-        probs = doc.get("class_probabilities") or {}
-        score = probs["ai"] if "ai" in probs else doc["completely_generated_prob"]
-        return max(0.0, min(1.0, float(score))), doc.get("predicted_class")
+        return max(0.0, min(1.0, _ai_probability(res.json())))
     except (KeyError, IndexError, TypeError, ValueError) as e:
-        raise DetectorError("GPTZero sent a response PLARE couldn't read. Run the check again.") from e
+        raise DetectorError("The detector sent a response PLARE couldn't read. Run the check again.") from e
+
+
+def detect(text: str, token: str) -> tuple[float, str | None]:
+    """How likely `text` is AI-written: (probability 0..1, "ai" or "human").
+
+    Long text is scored in pieces and averaged, weighted by each piece's length.
+    """
+    model = get_settings().hf_ai_detector_model
+    pieces = chunks(text)
+    if not pieces:
+        raise DetectorError("There's no text to check.")
+    total = sum(len(p) for p in pieces)
+    score = sum(_score_chunk(p, token, model) * len(p) for p in pieces) / total
+    return score, "ai" if score >= 0.5 else "human"
 
 
 def initial_status(text: str) -> str:
     """What the check row starts as, decided before any network call."""
     if not text:
         return "skipped"
-    if not get_settings().gptzero_api_key:
+    if not get_settings().hf_token:
         return "not_configured"
     if len(text) < MIN_CHARS:
         return "too_short"
@@ -99,7 +149,7 @@ def run_check(submission_id: str) -> None:
             data = path.read_bytes() if path.is_file() else None
         text = checkable_text(sub.text, data, sub.file_type)
         try:
-            check.ai_score, check.ai_label = detect(text, get_settings().gptzero_api_key)
+            check.ai_score, check.ai_label = detect(text, get_settings().hf_token)
             check.ai_status, check.ai_error = "done", ""
         except DetectorError as e:
             check.ai_status, check.ai_error = "error", str(e)
