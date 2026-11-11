@@ -8,10 +8,10 @@ import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./
 import { IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
-type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
+type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean; countLabel?: string };
 
-function CountPill({ n, alert }: { n: number; alert?: boolean }) {
-  return <span className={`ml-auto rounded-full px-2 py-px text-[11px] font-semibold tabular-nums ${alert ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"}`}>{n}</span>;
+function CountPill({ n, alert, label }: { n: number; alert?: boolean; label?: string }) {
+  return <span aria-label={label} title={label} className={`ml-auto rounded-full px-2 py-px text-[11px] font-semibold tabular-nums ${alert ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"}`}>{n}</span>;
 }
 
 type Ctx = { me: Me; org: Org; isLead: boolean; refresh: () => Promise<void>; selectOrg: (id: string) => void };
@@ -137,7 +137,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
-    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true },
+    { href: "/app/log", label: "Log", icon: IconLog, count: logToday.data ?? undefined, alert: true, countLabel: `${logToday.data ?? 0} new today` },
     { href: "/app/excuses", label: "Excuses", icon: IconNote, count: excusesPending.data || undefined },
   ];
   const active = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
@@ -158,7 +158,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
                 className={`flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[14px] transition-colors duration-150 ${on ? "bg-accent font-semibold text-accent-fg" : "text-text hover:bg-surface"}`}>
                 <n.icon width={17} height={17} className={on ? "" : "text-muted"} />
                 {n.label}
-                {n.count ? <CountPill n={n.count} alert={n.alert} /> : null}
+                {n.count ? <CountPill n={n.count} alert={n.alert} label={n.countLabel} /> : null}
               </Link>
             );
           })}
@@ -200,7 +200,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
               <n.icon width={22} height={22} />
               <span className="max-w-full truncate px-0.5">{n.short ?? n.label}</span>
               {n.count ? (
-                <span className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 tabular-nums ${n.alert ? "bg-danger text-white" : "bg-accent text-accent-fg"}`}>
+                <span aria-label={n.countLabel} title={n.countLabel} className={`absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 tabular-nums ${n.alert ? "bg-danger text-white" : "bg-accent text-accent-fg"}`}>
                   {n.count > 99 ? "99+" : n.count}
                 </span>
               ) : null}
