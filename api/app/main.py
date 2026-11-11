@@ -109,3 +109,8 @@ app.include_router(excuse_routes.router)
 from .routers import push as push_routes  # noqa: E402
 
 app.include_router(push_routes.router)
+
+# Random BP check-ins.
+from .routers import bp as bp_routes  # noqa: E402
+
+app.include_router(bp_routes.router)
