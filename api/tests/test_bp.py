@@ -220,3 +220,82 @@ def test_changing_blocks_replans_only_unopened_check_ins_today(client, world):
     assert len(pings(world["m2"])) == 1  # other pledges untouched
     with SessionLocal() as db:
         assert db.query(BpDayPlan).count() == 0
+
+
+# --- Answering --------------------------------------------------------------------------------
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+
+def open_ping(world, user="m1", minutes_left=10):
+    """A check-in for `user` that opened a few minutes ago."""
+    with SessionLocal() as db:
+        p = BpPing(org_id=world["org_a"], user_id=world[user], day=datetime.now(NY).date().isoformat(),
+                   ping_at=now() - timedelta(minutes=5), closes_at=now() + timedelta(minutes=minutes_left), notified=True)
+        db.add(p)
+        db.commit()
+        return p.id
+
+
+def test_pledge_sees_open_check_in_but_never_future_times(client, world):
+    turn_on(client, world)
+    h = as_user("m1@t.demo")
+    with SessionLocal() as db:
+        later = now() + timedelta(hours=2)
+        db.add(BpPing(org_id=world["org_a"], user_id=world["m1"], day=datetime.now(NY).date().isoformat(),
+                      ping_at=later, closes_at=later + timedelta(minutes=15)))
+        db.commit()
+    future_id = pings(world["m1"])[0].id
+    me = client.get(f"/orgs/{world['org_a']}/bp/me", headers=h).json()
+    assert me["open"] is None and me["history"] == []
+    assert me["today"]["still_to_come"] == 1
+    # Answering a check-in before it opens looks like it doesn't exist.
+    assert client.post(f"/bp/pings/{future_id}/decline", json={"reason": "class"}, headers=h).status_code == 404
+    pid = open_ping(world)
+    assert client.get(f"/orgs/{world['org_a']}/bp/me", headers=h).json()["open"]["id"] == pid
+    # Brothers can't see future times either.
+    today = client.get(f"/orgs/{world['org_a']}/bp/today", headers=lead()).json()
+    m1 = next(m for m in today["members"] if m["name"] == "m1")
+    assert m1["planned"] == 2 and m1["open_now"] is True
+    assert all(r["id"] != future_id for r in today["recent"])
+
+
+def test_photo_answer_and_private_access(client, world):
+    pid = open_ping(world)
+    h = as_user("m1@t.demo")
+    assert client.post(f"/bp/pings/{pid}/photo", files={"photo": ("x.png", PNG, "image/png")}, headers=as_user("m2@t.demo")).status_code == 404
+    assert client.post(f"/bp/pings/{pid}/photo", files={"photo": ("x.pdf", b"%PDF-1.4", "application/pdf")}, headers=h).status_code == 415
+    r = client.post(f"/bp/pings/{pid}/photo", files={"photo": ("x.png", PNG, "image/png")}, headers=h)
+    assert r.status_code == 200 and r.json()["response"] == "photo"
+    assert client.post(f"/bp/pings/{pid}/photo", files={"photo": ("x.png", PNG, "image/png")}, headers=h).status_code == 409
+    assert client.get(f"/bp/pings/{pid}/photo", headers=h).content == PNG
+    assert client.get(f"/bp/pings/{pid}/photo", headers=lead()).status_code == 200
+    assert client.get(f"/bp/pings/{pid}/photo", headers=as_user("m2@t.demo")).status_code == 404
+    assert client.get(f"/bp/pings/{pid}/photo", headers=as_user("outsider@t.demo")).status_code == 404
+    recent = client.get(f"/orgs/{world['org_a']}/bp/today", headers=lead()).json()["recent"]
+    assert [(x["name"], x["response"], x["has_photo"]) for x in recent] == [("m1", "photo", True)]
+
+
+def test_cant_right_now_is_always_available_and_not_logged(client, world):
+    pid = open_ping(world)
+    h = as_user("m1@t.demo")
+    assert client.post(f"/bp/pings/{pid}/decline", json={"reason": "x"}, headers=h).status_code == 422
+    r = client.post(f"/bp/pings/{pid}/decline", json={"reason": "In a job interview until 3"}, headers=h)
+    assert r.json()["response"] == "declined"
+    with SessionLocal() as db:
+        bp_scheduler.run(db, at=now() + timedelta(hours=1))
+        assert db.query(LogEntry).count() == 0
+    recent = client.get(f"/orgs/{world['org_a']}/bp/today", headers=lead()).json()["recent"]
+    assert recent[0]["decline_reason"] == "In a job interview until 3"
+
+
+def test_closed_check_in_rejects_answers(client, world):
+    with SessionLocal() as db:
+        p = BpPing(org_id=world["org_a"], user_id=world["m1"], day=datetime.now(NY).date().isoformat(),
+                   ping_at=now() - timedelta(minutes=30), closes_at=now() - timedelta(minutes=15), notified=True)
+        db.add(p)
+        db.commit()
+        pid = p.id
+    r = client.post(f"/bp/pings/{pid}/photo", files={"photo": ("x.png", PNG, "image/png")}, headers=as_user("m1@t.demo"))
+    assert r.status_code == 409 and "closed" in r.json()["detail"]
+    assert client.get(f"/orgs/{world['org_a']}/bp/today", headers=as_user("m1@t.demo")).status_code == 403

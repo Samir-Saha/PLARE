@@ -13,15 +13,19 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, available_timezones
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..auth import LEADS, audit, current_user, membership
+from ..config import get_settings
 from ..db import get_db, now
 from ..engine import bp_checkin as rules
-from ..models import BpBlock, BpDayPlan, BpPing, BpSettings, BusyBlock, Membership, Role, User
+from ..models import BpBlock, BpDayPlan, BpPing, BpSettings, BusyBlock, Membership, Role, User, uid
 
 router = APIRouter()
 
@@ -50,6 +54,13 @@ class BlockIn(BaseModel):
     end_minute: int = Field(ge=1, le=24 * 60)
     note: str = Field("", max_length=120)
     source: str = Field("manual", pattern="^(manual|calendar)$")
+
+
+class DeclineIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=300)
+
+
+PHOTO_TYPES = {"image/jpeg": (b"\xff\xd8\xff", ".jpg"), "image/png": (b"\x89PNG\r\n\x1a\n", ".png")}
 
 
 class BlocksIn(BaseModel):
@@ -227,3 +238,123 @@ def group_blocks(org_id: str, user: User = Depends(current_user), db: Session = 
         out.append({"user_id": m.user_id, "name": m.user.name, "blocks": [block_dict(b, private=False) for b in blocks],
                     "weekly_minutes": weekly, "recent": sum(now() - b.created_at < RECENT for b in blocks)})
     return sorted(out, key=lambda p: p["name"].lower())
+
+
+# --- Answering a check-in ----------------------------------------------------------------------
+
+def _ping_dict(p: BpPing) -> dict:
+    return {
+        "id": p.id, "day": p.day, "ping_at": p.ping_at, "closes_at": p.closes_at, "response": p.response,
+        "responded_at": p.responded_at, "decline_reason": p.decline_reason, "has_photo": bool(p.file_path),
+    }
+
+
+def _load_open_ping(db: Session, user: User, ping_id: str) -> BpPing:
+    p = db.get(BpPing, ping_id)
+    t = now()
+    # A check-in that hasn't opened yet doesn't exist, as far as anyone can tell.
+    if p is None or p.user_id != user.id or t < p.ping_at:
+        raise HTTPException(404, "Check-in not found")
+    membership(db, user, p.org_id)
+    if p.response in ("photo", "declined"):
+        raise HTTPException(409, "You already answered this check-in.")
+    if t >= p.closes_at:
+        raise HTTPException(409, "This check-in closed. Watch for the next one.")
+    return p
+
+
+@router.get("/orgs/{org_id}/bp/me")
+def my_check_ins(org_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """A pledge's view: the open check-in (if any), how today is going, and the last two weeks.
+    Check-ins that haven't opened yet are counted but their times are never shown."""
+    membership(db, user, org_id)
+    s = get_settings_row(db, org_id)
+    t = now()
+    today = datetime.now(ZoneInfo(s.timezone)).date().isoformat()
+    since = (datetime.now(ZoneInfo(s.timezone)).date() - timedelta(days=14)).isoformat()
+    rows = db.scalars(select(BpPing).where(BpPing.org_id == org_id, BpPing.user_id == user.id, BpPing.day >= since)
+                      .order_by(BpPing.ping_at.desc())).all()
+    opened = [p for p in rows if p.ping_at <= t]
+    open_now = next((p for p in opened if p.response is None and t < p.closes_at), None)
+    return {
+        "settings": settings_dict(s),
+        "open": _ping_dict(open_now) if open_now else None,
+        "today": {
+            "planned": sum(p.day == today for p in rows),
+            "still_to_come": sum(p.day == today and p.ping_at > t for p in rows),
+            "photos": sum(p.day == today and p.response == "photo" for p in rows),
+        },
+        "history": [_ping_dict(p) for p in opened if p is not open_now],
+    }
+
+
+@router.post("/bp/pings/{ping_id}/photo")
+async def send_photo(ping_id: str, photo: UploadFile = File(...), user: User = Depends(current_user),
+                     db: Session = Depends(get_db)):
+    p = _load_open_ping(db, user, ping_id)
+    cfg = get_settings()
+    data = await photo.read(cfg.max_upload_bytes + 1)
+    if len(data) > cfg.max_upload_bytes:
+        raise HTTPException(413, f"Photo is larger than {cfg.max_upload_bytes // (1024 * 1024)} MB. Take it again.")
+    file_type = next((mime for mime, (sig, _) in PHOTO_TYPES.items() if data.startswith(sig)), None)
+    if file_type is None:
+        raise HTTPException(415, "Send a JPEG or PNG photo.")
+    file_path = f"{p.org_id}/bp/{uid()}{PHOTO_TYPES[file_type][1]}"
+    target = Path(cfg.upload_dir) / file_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    p.response, p.responded_at, p.file_path, p.file_type = "photo", now(), file_path, file_type
+    db.commit()
+    return _ping_dict(p)
+
+
+@router.post("/bp/pings/{ping_id}/decline")
+def decline(ping_id: str, body: DeclineIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """"Can't right now." Always available while a check-in is open. Brothers see the reason;
+    it isn't logged as missed."""
+    p = _load_open_ping(db, user, ping_id)
+    p.response, p.responded_at, p.decline_reason = "declined", now(), body.reason.strip()
+    db.commit()
+    return _ping_dict(p)
+
+
+@router.get("/bp/pings/{ping_id}/photo")
+def ping_photo(ping_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Private: the pledge who took it and the group's brothers."""
+    p = db.get(BpPing, ping_id)
+    if p is None or not p.file_path:
+        raise HTTPException(404, "Photo not found")
+    m = membership(db, user, p.org_id)
+    if p.user_id != user.id and Role(m.role) not in LEADS:
+        raise HTTPException(404, "Photo not found")
+    path = Path(get_settings().upload_dir) / p.file_path
+    if not path.is_file():
+        raise HTTPException(404, "Photo not found")
+    return FileResponse(path, media_type=p.file_type, headers={"Cache-Control": "private, no-store"})
+
+
+@router.get("/orgs/{org_id}/bp/today")
+def group_today(org_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """For brothers: today's check-ins per pledge and the last week's answers. Planned times that
+    haven't opened stay hidden from brothers too, so nobody can tip a pledge off."""
+    membership(db, user, org_id, *LEADS)
+    s = get_settings_row(db, org_id)
+    t = now()
+    local_today = datetime.now(ZoneInfo(s.timezone)).date()
+    today, since = local_today.isoformat(), (local_today - timedelta(days=7)).isoformat()
+    members = db.scalars(select(Membership).where(Membership.org_id == org_id, Membership.role == Role.member)).all()
+    rows = db.scalars(select(BpPing).where(BpPing.org_id == org_id, BpPing.day >= since).order_by(BpPing.ping_at.desc())).all()
+    people = []
+    for m in members:
+        mine = [p for p in rows if p.user_id == m.user_id and p.day == today]
+        people.append({
+            "user_id": m.user_id, "name": m.user.name, "planned": len(mine),
+            "photos": sum(p.response == "photo" for p in mine), "declined": sum(p.response == "declined" for p in mine),
+            "missed": sum(p.response == "missed" for p in mine),
+            "open_now": any(p.ping_at <= t < p.closes_at and p.response is None for p in mine),
+        })
+    names = {m.user_id: m.user.name for m in members}
+    recent = [{**_ping_dict(p), "user_id": p.user_id, "name": names.get(p.user_id, "")}
+              for p in rows if p.ping_at <= t and p.response in ("photo", "declined", "missed")]
+    return {"day": today, "settings": settings_dict(s), "members": sorted(people, key=lambda p: p["name"].lower()),
+            "recent": recent}
