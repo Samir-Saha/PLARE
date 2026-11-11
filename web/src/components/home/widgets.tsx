@@ -28,10 +28,10 @@ export function timeAgo(iso: string, nowMs: number) {
 /* ---------- KPI card ---------- */
 
 const kpiTones = {
-  navy: { box: "bg-accent text-accent-fg", sub: "text-on-accent-muted", icon: "bg-accent-fg/15", track: "bg-accent-fg/20", fill: "bg-accent-fg" },
+  navy: { box: "bg-accent text-accent-fg", sub: "text-on-accent-muted", icon: "bg-gold text-gold-fg", track: "bg-accent-fg/20", fill: "bg-gold" },
   mid: { box: "bg-accent-2 text-accent-2-fg", sub: "text-accent-2-fg/75", icon: "bg-accent-2-fg/15", track: "bg-accent-2-fg/25", fill: "bg-accent-2-fg" },
   light: { box: "bg-accent-soft text-text", sub: "text-muted", icon: "bg-surface text-accent", track: "bg-accent-3/40", fill: "bg-accent" },
-  plain: { box: "border border-line bg-raised text-text", sub: "text-muted", icon: "bg-surface text-accent", track: "bg-line", fill: "bg-accent-2" },
+  plain: { box: "border border-line bg-surface text-text", sub: "text-muted", icon: "bg-surface text-accent", track: "bg-line", fill: "bg-accent-2" },
 };
 
 /** Compact metric card. `pct` is omitted when there's no denominator, so no fake 0% bar is drawn. */
@@ -46,7 +46,7 @@ export function KpiCard({ tone, icon: Icon, label, value, unit, sub, pct, href }
         <span aria-hidden className={`grid size-8 shrink-0 place-items-center rounded-lg ${t.icon}`}><Icon width={17} height={17} /></span>
         <p className="text-[13px] font-semibold">{label}</p>
       </div>
-      <p className="mt-3 whitespace-nowrap font-display text-[22px] font-bold leading-none tabular-nums sm:text-[26px]">
+      <p className="mt-4 whitespace-nowrap font-display text-[26px] font-extrabold leading-none tabular-nums sm:text-[32px]">
         {value}{unit && <span className="ml-1.5 text-[15px] font-semibold">{unit}</span>}
       </p>
       <p className={`mt-1.5 line-clamp-2 text-xs ${t.sub}`}>{sub}</p>
@@ -57,8 +57,8 @@ export function KpiCard({ tone, icon: Icon, label, value, unit, sub, pct, href }
       )}
     </>
   );
-  const cls = `block min-w-0 rounded-xl p-4 transition-opacity duration-150 ${t.box}`;
-  return href ? <Link href={href} className={`${cls} hover:opacity-95`}>{body}</Link> : <div className={cls}>{body}</div>;
+  const cls = `block min-w-0 rounded-2xl p-4 sm:p-5 ${t.box}`;
+  return href ? <Link href={href} className={`${cls} transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-pop active:translate-y-0`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 /* ---------- Panel ---------- */
@@ -67,9 +67,9 @@ export function Panel({ title, icon: Icon, action, children, className = "" }: {
   title: string; icon?: (p: SVGProps<SVGSVGElement>) => ReactNode; action?: ReactNode; children: ReactNode; className?: string;
 }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-line bg-surface p-4 sm:p-5 ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-line bg-surface p-4 sm:p-5 ${className}`}>
       <div className="mb-3.5 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-display text-[15px] font-semibold">
+        <h2 className="flex items-center gap-2 font-display text-[17px] font-bold">
           {Icon && <Icon width={18} height={18} className="text-accent-2" />}{title}
         </h2>
         {action}

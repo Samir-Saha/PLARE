@@ -41,7 +41,7 @@ export function CalendarRail({ title, items, tz, loading, error, footer, emptyTe
       <div className="space-y-6">
         {days.map(([day, list]) => (
           <section key={day}>
-            <h3 className="mb-3 text-[13px] font-bold uppercase tracking-[0.04em] text-accent-2">{day}</h3>
+            <h3 className="mb-3 text-[13px] font-bold text-accent-2">{day}</h3>
             <ul className="space-y-4">
               {list.map((it) => (
                 <li key={it.id} className="flex gap-3">

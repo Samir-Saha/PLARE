@@ -218,7 +218,7 @@ function CheckInCard({ pingId, secondsLeft, onDone }: { pingId: string; secondsL
     }
   }
   return (
-    <section aria-live="assertive" className="mb-4 rounded-[18px] border border-warn bg-warn-soft p-5">
+    <section aria-live="assertive" className="mb-4 rounded-2xl border border-warn bg-warn-soft p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg font-semibold text-warn">Check-in open</h2>
@@ -286,7 +286,7 @@ function Hours({ session, tz, memberLabel }: { session: StudyRoom; tz: string; m
       <h2 className="mb-3 font-display text-lg font-semibold tracking-[-0.01em]">Hours</h2>
       <ol className="space-y-2">
         {[...session.hours].reverse().map((h) => (
-          <li key={h.index} className="rounded-[14px] border border-line bg-surface px-4 py-3">
+          <li key={h.index} className="rounded-xl border border-line bg-surface px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-medium tabular-nums">Hour {h.index + 1} <span className="font-normal text-muted">· {fmtTime(h.start, tz)} to {fmtTime(h.end, tz)}</span></p>
               <Badge tone={STATUS[h.status].tone}>{STATUS[h.status].label}</Badge>
@@ -399,7 +399,7 @@ function Chat({ session, meId, tz, onSent }: { session: StudyRoom; meId: string;
   return (
     <section>
       <h2 className="mb-3 font-display text-lg font-semibold tracking-[-0.01em]">Room chat</h2>
-      <div className="rounded-[14px] border border-line bg-surface">
+      <div className="rounded-xl border border-line bg-surface">
         <ol ref={list} aria-live="polite" className="max-h-80 space-y-3 overflow-y-auto p-4">
           {session.messages.length === 0 && <li className="text-sm text-muted">No messages yet. Say hi or ask a question.</li>}
           {session.messages.map((m) => (
@@ -431,7 +431,7 @@ function History({ orgId, isLead, tz, memberLabel, refreshKey }: { orgId: string
       {members && (
         <div>
           <h2 className="mb-3 font-display text-lg font-semibold tracking-[-0.01em]">Group hours by {memberLabel.toLowerCase()}</h2>
-          <div className="overflow-hidden rounded-[14px] border border-line">
+          <div className="overflow-hidden rounded-xl border border-line">
             <table className={table.table}>
               <thead className={table.head}><tr><th className={table.th}>Name</th><th className={`${table.th} text-right`}>Hours counted</th></tr></thead>
               <tbody className={table.body}>
@@ -444,7 +444,7 @@ function History({ orgId, isLead, tz, memberLabel, refreshKey }: { orgId: string
       {sessions.length > 0 && (
         <div>
           <h2 className="mb-3 font-display text-lg font-semibold tracking-[-0.01em]">Past sessions</h2>
-          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {sessions.map((s) => (
               <li key={s.id} className="flex flex-wrap justify-between gap-3 px-4 py-3 text-sm tabular-nums">
                 <span>{s.title} · {fmtDay(s.started_at, tz)}, {fmtTime(s.started_at, tz)}</span>

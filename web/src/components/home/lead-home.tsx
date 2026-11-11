@@ -101,7 +101,7 @@ export function LeadHome() {
               <UpcomingList items={upcoming} tz={tz} empty={day ? "Nothing on this day." : "No meetings or deadlines coming up. Propose a meeting from the Calendar tab."} />
             )}
           </section>
-          <Link href="/app/schedule" className="flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-accent px-3 text-[13px] font-semibold text-accent transition-colors duration-150 hover:bg-accent-soft">
+          <Link href="/app/schedule" className="flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line-strong bg-surface px-3 text-[13px] font-semibold text-text transition-[background-color,scale] duration-150 hover:bg-raised active:scale-[0.97]">
             <IconUsers width={17} height={17} />Find a time everyone&apos;s free
           </Link>
         </div>
@@ -109,8 +109,9 @@ export function LeadHome() {
     >
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.01em] sm:text-[30px]">Hello, {me.name.split(" ")[0]}</h1>
-          <p className="mt-1 truncate text-sm text-muted">{fmtToday(tz)} · {org.name}</p>
+          <span aria-hidden className="mb-3 block h-1 w-8 rounded-full bg-gold" />
+          <h1 className="font-display text-[34px] font-extrabold sm:text-[44px]">Hello, {me.name.split(" ")[0]}</h1>
+          <p className="mt-2 truncate text-base font-medium text-muted">{fmtToday(tz)} · {org.name}</p>
         </div>
         <div className="flex items-center gap-2">
           <NotificationBell />
@@ -192,12 +193,12 @@ export function LeadHome() {
 
       {/* Best shared study window, from the real group availability engine. */}
       <section aria-label="Best group study time" className="mb-5 flex flex-wrap items-center gap-4 rounded-xl bg-accent px-5 py-4 text-accent-fg">
-        <span aria-hidden className="hidden size-11 shrink-0 place-items-center rounded-lg bg-accent-fg/10 sm:grid"><IconBars width={22} height={22} /></span>
+        <span aria-hidden className="hidden size-11 shrink-0 place-items-center rounded-lg bg-gold text-gold-fg sm:grid"><IconBars width={22} height={22} /></span>
         <div className="min-w-0 flex-1 basis-60">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-on-accent-muted">Best group study time</p>
+          <p className="text-[13px] font-semibold text-on-accent-muted">Best group study time</p>
           {study.error ? <p className="mt-1 text-sm">{study.error}</p> : !study.data ? <p className="mt-1 text-sm text-on-accent-muted">Finding a time…</p> : best ? (
             <>
-              <p className="mt-0.5 font-display text-lg font-semibold">{fmtDay(best.start, study.data.timezone)}, {fmtTime(best.start, study.data.timezone)}</p>
+              <p className="mt-0.5 font-display text-[22px] font-extrabold">{fmtDay(best.start, study.data.timezone)}, {fmtTime(best.start, study.data.timezone)}</p>
               <p className="text-[13px] text-on-accent-muted tabular-nums">
                 {best.count} of {best.total} {member}s free · 2 hours{alternatives > 0 ? ` · ${alternatives} other ${alternatives === 1 ? "option" : "options"}` : ""}
               </p>
@@ -209,7 +210,7 @@ export function LeadHome() {
             </>
           )}
         </div>
-        <Link href={best ? "/app/study" : "/app/schedule"} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent-fg px-4 text-sm font-semibold text-accent transition-opacity duration-150 hover:opacity-90">
+        <Link href={best ? "/app/study" : "/app/schedule"} className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-gold px-4 text-sm font-semibold text-gold-fg transition-[filter,scale] duration-150 hover:brightness-105 active:scale-[0.97]">
           <IconCalendar width={16} height={16} />{best ? "Plan study session" : "Add availability"}
         </Link>
       </section>

@@ -39,7 +39,7 @@ export default function Review() {
       {p && p.members.length > 0 && (
         <section className="mt-10">
           <h2 className="mb-3.5 font-display text-xl font-bold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
-          <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
+          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
             <table className="w-full text-sm tabular-nums">
               <thead className="bg-raised text-left text-[14px] text-muted">
                 <tr>

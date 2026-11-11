@@ -50,15 +50,16 @@ export function MemberHome() {
       }
     >
       {/* TODO(notifications): the mockup's bell with an unread dot needs the notification center, which isn't built yet. */}
-      <header className="mb-6">
-        <p className="text-[15px] text-muted">{fmtToday(me.timezone)}</p>
-        <h1 className="mt-0.5 font-display text-[30px] font-bold leading-tight tracking-[-0.01em] sm:text-[32px]">Hey, {me.name.split(" ")[0]}</h1>
+      <header className="mb-7">
+        <span aria-hidden className="mb-3 block h-1 w-8 rounded-full bg-gold" />
+        <h1 className="font-display text-[34px] font-extrabold sm:text-[44px]">Hey, {me.name.split(" ")[0]}</h1>
+        <p className="mt-2 text-base font-medium text-muted">{fmtToday(me.timezone)}</p>
       </header>
 
       {tasks.error && <div className="mb-4"><Notice>{tasks.error}</Notice></div>}
       {!tasks.data && !tasks.error && <div className="mb-8"><Skeleton rows={1} /></div>}
       {tasks.data && (
-        <section aria-label="Requirements progress" className="mb-8 rounded-[22px] bg-accent px-5 pb-6 pt-5 text-accent-fg sm:max-w-xl">
+        <section aria-label="Requirements progress" className="mb-8 rounded-2xl bg-accent px-5 pb-6 pt-5 text-accent-fg sm:max-w-xl">
           <div className="flex items-center justify-between gap-3 text-[14px] text-on-accent-muted">
             <span>Approved{nextDue ? ` · next due ${fmtShortDay(nextDue.due_at!, me.timezone)}` : ""}</span>
             {overdueCount > 0
@@ -67,13 +68,13 @@ export function MemberHome() {
           </div>
           <div className="mt-3 flex items-end justify-between gap-3">
             <p className="font-display">
-              <span className="text-[44px] font-bold leading-none">{done}</span>
+              <span className="text-[64px] font-extrabold leading-none tabular-nums">{done}</span>
               <span className="ml-2 text-xl text-on-accent-muted">/ {all.length}</span>
             </p>
             {pending > 0 && <span className="mb-1 rounded-full bg-accent-fg/15 px-3.5 py-1.5 text-[14px] font-medium tabular-nums">+{pending} pending</span>}
           </div>
           <div className="mt-5">
-            <Progress value={all.length ? (done / all.length) * 100 : 0} label="Requirements approved" track="bg-on-accent-muted/30" fill="bg-accent-fg" className="h-1.5" />
+            <Progress value={all.length ? (done / all.length) * 100 : 0} label="Requirements approved" track="bg-on-accent-muted/30" fill="bg-gold" className="h-1.5" />
           </div>
         </section>
       )}
@@ -128,7 +129,7 @@ export function MemberHome() {
         <ul className="space-y-2.5">
           {log.data?.slice(0, 2).map((e) => (
             <ListRow key={e.id} bar={null} end={
-              <span className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-muted">{e.automatic ? "Auto" : "Added"}</span>
+              <span className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold text-muted">{e.automatic ? "Auto" : "Added"}</span>
             }>
               <p className="text-[15px] font-semibold leading-snug">{e.label}</p>
               <p className="mt-0.5 truncate text-[14px] text-muted tabular-nums">{fmtShortDay(e.created_at, LOG_TZ)} · {e.detail}</p>
