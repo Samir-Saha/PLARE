@@ -437,3 +437,35 @@ class SubmissionCheck(Base):
     ai_label: Mapped[str | None] = mapped_column(String(16))     # detector's class: human | mixed | ai
     ai_error: Mapped[str] = mapped_column(Text, default="")
     ai_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class PushSubscription(Base):
+    """One browser or installed app that agreed to receive push notifications."""
+
+    __tablename__ = "push_subscriptions"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True)  # the push service URL for this device
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    device: Mapped[str] = mapped_column(String(120), default="")      # a label like "iPhone" for the settings list
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class NotificationPrefs(Base):
+    """Per-person push settings. Quiet hours are minutes after local midnight; None means off."""
+
+    __tablename__ = "notification_prefs"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    quiet_start_minute: Mapped[int | None] = mapped_column(Integer)
+    quiet_end_minute: Mapped[int | None] = mapped_column(Integer)
+
+
+class PushDelivery(Base):
+    """One row per notification the push sender has handled, so nothing is pushed twice."""
+
+    __tablename__ = "push_deliveries"
+    notification_id: Mapped[str] = mapped_column(ForeignKey("notifications.id", ondelete="CASCADE"), primary_key=True)
+    # sending | sent | failed | quiet (held back by quiet hours) | no_device
+    status: Mapped[str] = mapped_column(String(16), default="sending")
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)

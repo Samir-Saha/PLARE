@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     hf_token: str = ""
     # Any text-classification detector on Hugging Face's hf-inference provider.
     hf_ai_detector_model: str = "Hello-SimpleAI/chatgpt-detector-roberta"
+    # Web Push (VAPID). Generate a pair with `python -m app.push keys`. Blank turns push off.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    # Contact the push services can reach if something goes wrong, as mailto: or https:.
+    vapid_subject: str = "mailto:admin@example.com"
+    # Shared secret for POST /cron/tick, so an outside scheduler can run reminders and pushes
+    # when the server has been asleep. Blank turns the endpoint off.
+    cron_secret: str = ""
     # Run the reminder loop inside the API process (checks once a minute).
     run_reminders: bool = True
 
