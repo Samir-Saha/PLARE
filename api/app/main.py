@@ -82,6 +82,11 @@ from .routers import log as log_routes  # noqa: E402
 
 app.include_router(log_routes.router)
 
+# Coffee chats.
+from .routers import coffee as coffee_routes  # noqa: E402
+
+app.include_router(coffee_routes.router)
+
 # Excused absences (appended for the same reason).
 from .routers import excuses as excuse_routes  # noqa: E402
 

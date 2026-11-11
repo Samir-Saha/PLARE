@@ -18,11 +18,11 @@ export function Wordmark({ className = "" }: { className?: string }) {
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:opacity-90",
-  secondary: "bg-accent-soft text-accent hover:bg-accent-3/45",
+  primary: "bg-accent text-accent-fg shadow-card hover:-translate-y-px hover:shadow-pop active:translate-y-0",
+  secondary: "border border-accent-3/60 bg-accent-soft text-accent hover:border-accent-3 hover:bg-accent-3/45",
   ghost: "text-muted hover:bg-raised hover:text-text",
-  danger: "border border-line bg-surface text-danger hover:bg-danger-soft",
-  outline: "border border-line bg-surface text-text hover:bg-raised",
+  danger: "border-[1.5px] border-danger/40 bg-surface text-danger hover:border-danger hover:bg-danger-soft",
+  outline: "border-[1.5px] border-line bg-surface text-text hover:border-accent-3 hover:bg-raised",
 };
 
 export function Button({ variant = "secondary", busy, className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; busy?: boolean }) {
@@ -31,7 +31,7 @@ export function Button({ variant = "secondary", busy, className = "", children, 
       {...rest}
       disabled={rest.disabled || busy}
       aria-busy={busy || undefined}
-      className={`relative inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,color,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`relative inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,color,opacity,border-color,box-shadow,translate] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
     >
       {/* Busy keeps the label in place (no width jump) and overlays a spinner. */}
       <span className={`inline-flex items-center gap-2 ${busy ? "invisible" : ""}`}>{children}</span>
@@ -43,7 +43,7 @@ export function Button({ variant = "secondary", busy, className = "", children, 
 /** Link styled as a button, for navigation that looks like an action. */
 export function ButtonLink({ href, variant = "secondary", className = "", children, ...rest }: { href: string; variant?: Variant; className?: string; children: ReactNode; "aria-label"?: string }) {
   return (
-    <Link href={href} {...rest} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${variants[variant]} ${className}`}>
+    <Link href={href} {...rest} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all ${variants[variant]} ${className}`}>
       {children}
     </Link>
   );
@@ -54,27 +54,27 @@ export function Spinner({ className = "size-4" }: { className?: string }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[18px] border border-line bg-surface p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-[18px] border border-line bg-surface p-5 shadow-card ${className}`}>{children}</section>;
 }
 
 const tones = {
-  neutral: "bg-raised text-muted border border-line",
-  accent: "bg-accent-soft text-accent",
-  ok: "bg-ok-soft text-ok",
-  warn: "bg-warn-soft text-warn",
-  danger: "bg-danger-soft text-danger",
+  neutral: "bg-raised text-text border border-line",
+  accent: "bg-accent-soft text-accent border border-accent-3/50",
+  ok: "bg-ok-soft text-ok border border-ok/30",
+  warn: "bg-warn-soft text-warn border border-warn/30",
+  danger: "bg-danger-soft text-danger border border-danger/30",
 };
 
 export function Badge({ tone = "neutral", children }: { tone?: keyof typeof tones; children: ReactNode }) {
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
 }
 
 export function PageHeader({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.01em] sm:text-[32px]">{title}</h1>
-        {hint && <p className="mt-1 text-sm text-muted tabular-nums">{hint}</p>}
+        <h1 className="font-display text-[30px] font-bold leading-tight tracking-[-0.015em] sm:text-[36px]">{title}</h1>
+        {hint && <p className="mt-1.5 text-base font-medium text-muted tabular-nums">{hint}</p>}
       </div>
       {action && <div className="flex items-center gap-3">{action}</div>}
     </header>
@@ -85,8 +85,8 @@ export function PageHeader({ title, hint, action }: { title: string; hint?: stri
 export function SectionHeader({ title, href, linkLabel, id, className = "" }: { title: string; href?: string; linkLabel?: string; id?: string; className?: string }) {
   return (
     <div className={`mb-3.5 flex items-baseline justify-between gap-3 ${className}`}>
-      <h2 id={id} className="font-display text-lg font-semibold tracking-[-0.01em]">{title}</h2>
-      {href && linkLabel && <Link href={href} className="text-[13px] font-medium text-accent underline underline-offset-2 tabular-nums">{linkLabel}</Link>}
+      <h2 id={id} className="font-display text-xl font-bold tracking-[-0.01em]">{title}</h2>
+      {href && linkLabel && <Link href={href} className="text-[14px] font-semibold text-accent-2 underline decoration-2 underline-offset-4 hover:text-accent tabular-nums">{linkLabel}</Link>}
     </div>
   );
 }
@@ -113,8 +113,8 @@ export function Page({ children, rail, railLabel, railOnMobile = true }: { child
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-dashed border-line bg-raised px-4 py-8 text-center">
-      <p className="font-medium">{title}</p>
+    <div className="rounded-[14px] border-2 border-dashed border-line bg-raised px-4 py-8 text-center">
+      <p className="text-base font-semibold">{title}</p>
       {children && <div className="mx-auto mt-1 max-w-sm text-sm text-muted">{children}</div>}
     </div>
   );
@@ -122,7 +122,7 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 export function Notice({ tone = "danger", children }: { tone?: "danger" | "ok" | "warn"; children: ReactNode }) {
   return (
-    <p role={tone === "danger" ? "alert" : "status"} className={`rounded-xl px-3 py-2 text-sm ${tones[tone]}`}>
+    <p role={tone === "danger" ? "alert" : "status"} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium ${tones[tone]}`}>
       {children}
     </p>
   );
@@ -172,7 +172,7 @@ export function initials(name: string) {
 
 export function Avatar({ name, className = "size-9 text-xs" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-display font-semibold text-accent ${className}`}>
+    <span aria-hidden className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-display font-bold text-accent ring-2 ring-accent-3/60 ${className}`}>
       {initials(name)}
     </span>
   );
@@ -182,10 +182,10 @@ export function Avatar({ name, className = "size-9 text-xs" }: { name: string; c
 export function AvatarStack({ names, max = 2, ring = "ring-surface" }: { names: string[]; max?: number; ring?: string }) {
   const shown = names.slice(0, max);
   const rest = names.length - shown.length;
-  const chip = `-ml-1.5 grid h-7 min-w-7 place-items-center rounded-full px-1 text-[10px] font-bold tabular-nums ring-2 first:ml-0 ${ring}`;
+  const chip = `-ml-1.5 grid h-7 min-w-7 place-items-center rounded-full px-1 text-[11px] font-bold tabular-nums ring-2 first:ml-0 ${ring}`;
   return (
     <span role="img" aria-label={`${names.length} ${names.length === 1 ? "person" : "people"}`} className="flex items-center">
-      {rest > 0 && <span aria-hidden className={`${chip} relative z-10 bg-surface text-[9px] text-accent`}>+{rest}</span>}
+      {rest > 0 && <span aria-hidden className={`${chip} relative z-10 bg-surface text-[10px] text-accent`}>+{rest}</span>}
       {shown.map((n, i) => (
         <span key={n + i} aria-hidden className={`${chip} ${i % 2 ? "bg-surface text-accent" : "bg-accent-3 text-accent"}`}>{initials(n)}</span>
       ))}
@@ -193,7 +193,7 @@ export function AvatarStack({ names, max = 2, ring = "ring-surface" }: { names: 
   );
 }
 
-export function Progress({ value, label, track = "bg-line", fill = "bg-accent", className = "h-1.5" }: { value: number; label: string; track?: string; fill?: string; className?: string }) {
+export function Progress({ value, label, track = "bg-line", fill = "bg-accent", className = "h-2" }: { value: number; label: string; track?: string; fill?: string; className?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
     <div className={`overflow-hidden rounded-full ${track} ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
@@ -214,15 +214,15 @@ export function SummaryCard({ tone, title, stat, pct, people, meta, foot }: {
 }) {
   const t = cardTones[tone];
   return (
-    <section className={`flex min-h-[196px] flex-col rounded-[18px] px-[22px] pb-5 pt-[22px] ${t.box}`}>
+    <section className={`flex min-h-[196px] flex-col rounded-[18px] px-[22px] pb-5 pt-[22px] shadow-pop ${t.box}`}>
       <div className="mb-5 flex min-h-7 items-center justify-between gap-2">
         {people && people.length > 0 ? <AvatarStack names={people} ring={t.ring} /> : <span />}
-        {meta && <span className={`text-xs tabular-nums ${t.sub}`}>{meta}</span>}
+        {meta && <span className={`text-[13px] font-medium tabular-nums ${t.sub}`}>{meta}</span>}
       </div>
-      <h2 className="font-display text-xl font-semibold leading-tight">{title}</h2>
-      <p className={`mt-1 text-[13px] leading-snug tabular-nums ${t.sub}`}>{stat}</p>
+      <h2 className="font-display text-[22px] font-bold leading-tight">{title}</h2>
+      <p className={`mt-1.5 text-[15px] font-medium leading-snug tabular-nums ${t.sub}`}>{stat}</p>
       {pct !== undefined && <div className="mt-auto pt-5"><Progress value={pct} label={title} track={t.track} fill={t.fill} /></div>}
-      {foot && <p className={`mt-3 text-xs tabular-nums ${t.sub}`}>{foot}</p>}
+      {foot && <p className={`mt-3 text-[13px] font-medium tabular-nums ${t.sub}`}>{foot}</p>}
     </section>
   );
 }
@@ -234,9 +234,9 @@ export function SummaryRow({ children }: { children: ReactNode }) {
 /** One stat in a <dl>: raised tile, big display number on top, small muted label below. */
 export function StatTile({ label, value, tone }: { label: string; value: ReactNode; tone?: "danger" }) {
   return (
-    <div className="flex flex-col-reverse justify-end rounded-[14px] bg-raised px-4 py-4">
-      <dt className="mt-1.5 text-xs text-muted">{label}</dt>
-      <dd className={`font-display text-[26px] font-semibold leading-none tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
+    <div className="flex flex-col-reverse justify-end rounded-[14px] border border-line bg-raised px-4 py-4">
+      <dt className="mt-2 text-sm font-medium text-muted">{label}</dt>
+      <dd className={`font-display text-[32px] font-bold leading-none tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
     </div>
   );
 }
@@ -257,8 +257,8 @@ export function barFor(key: string): Bar {
  */
 export function ListRow({ bar = "navy", className = "", end, children }: { bar?: Bar | null; className?: string; end?: ReactNode; children: ReactNode }) {
   return (
-    <li className="flex items-center gap-4 rounded-[14px] border border-line bg-surface py-3.5 pl-4 pr-3">
-      {bar && <span aria-hidden className={`my-0.5 w-[3px] shrink-0 self-stretch rounded-full ${bars[bar]}`} />}
+    <li className="flex items-center gap-4 rounded-[14px] border border-line bg-surface py-3.5 pl-4 pr-3 shadow-card transition-shadow hover:shadow-pop">
+      {bar && <span aria-hidden className={`my-0.5 w-1 shrink-0 self-stretch rounded-full ${bars[bar]}`} />}
       <div className={`min-w-0 flex-1 ${className}`}>{children}</div>
       {end}
     </li>
@@ -272,7 +272,7 @@ export function CheckButton({ active, label, children, className = "", ...rest }
   return (
     <button type="button" aria-label={label} title={label} {...rest}
       className={`group grid size-11 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
-      <span className={`${circle} ${active ? "bg-accent text-accent-fg" : "border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent"}`}>
+      <span className={`${circle} ${active ? "bg-accent text-accent-fg" : "border-2 border-muted/50 text-transparent group-hover:border-accent group-hover:text-accent"}`}>
         {children ?? <IconCheck width={16} height={16} strokeWidth={2.25} />}
       </span>
     </button>
@@ -292,7 +292,7 @@ export function CheckMark({ label }: { label: string }) {
 export function CheckLink({ href, label }: { href: string; label: string }) {
   return (
     <Link href={href} aria-label={label} title={label} className="group grid size-11 shrink-0 place-items-center rounded-full">
-      <span className={`${circle} border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent`}>
+      <span className={`${circle} border-2 border-muted/50 text-transparent group-hover:border-accent group-hover:text-accent`}>
         <IconCheck width={16} height={16} strokeWidth={2.25} />
       </span>
     </Link>
@@ -301,16 +301,16 @@ export function CheckLink({ href, label }: { href: string; label: string }) {
 
 /** Shared classes for bordered tables with a raised header. */
 export const table = {
-  wrap: "overflow-x-auto rounded-[14px] border border-line bg-surface",
+  wrap: "overflow-x-auto rounded-[14px] border border-line bg-surface shadow-card",
   table: "w-full text-sm tabular-nums",
-  head: "bg-raised text-left text-[13px] text-muted",
-  th: "px-4 py-3 font-normal",
+  head: "border-b border-line bg-raised text-left text-[13px] uppercase tracking-[0.04em] text-muted",
+  th: "px-4 py-3 font-semibold",
   body: "divide-y divide-line",
   cell: "px-4 py-3",
 };
 
 /** Shared class for text inputs and selects. */
-export const field = "mt-1 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm font-normal text-text";
+export const field = "mt-1 w-full rounded-xl border-[1.5px] border-line bg-surface px-3 py-2.5 text-sm font-normal text-text hover:border-accent-3 focus:border-accent-2";
 
 /** Loads data on mount and whenever deps change; exposes reload for after mutations. */
 export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
