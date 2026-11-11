@@ -119,3 +119,8 @@ app.include_router(push_routes.router)
 from .routers import bp as bp_routes  # noqa: E402
 
 app.include_router(bp_routes.router)
+
+# Shared calendar events with RSVPs.
+from .routers import events as event_routes  # noqa: E402
+
+app.include_router(event_routes.router)

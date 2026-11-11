@@ -136,6 +136,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
     { href: "/app/gm", label: "GM messages", short: "GM", icon: IconSun, count: gmAlerts.data || undefined, alert: true },
     { href: "/app/bp", label: "BP check-in", short: "BP", icon: IconCamera },
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
+    { href: "/app/events", label: "Events", icon: IconCalendar },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/coffee", label: "Coffee chats", icon: IconCoffee, short: "Coffee" },
     { href: "/app/group", label: "Group", icon: IconUsers },

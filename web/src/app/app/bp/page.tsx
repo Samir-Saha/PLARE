@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, fileUrl, type BpCheckin, type BpGrid, type BpMine, type BpTile } from "@/lib/api";
 import { fmtDate, fmtMinute, fmtTime, minutesBetween } from "@/lib/format";
 import { useApp } from "@/components/shell";
-import { Badge, Button, Card, Empty, ListRow, Notice, Page, PageHeader, SectionHeader, Skeleton, field, useLoad } from "@/components/ui";
+import { Badge, Button, Card, Empty, ListRow, Notice, Page, PageHeader, SectionHeader, Skeleton, field, useLoad, useToast } from "@/components/ui";
 
 /** BP check-in: leads get the day's grid; members take today's photo. */
 export default function Bp() {
@@ -129,6 +129,7 @@ function LeadBp() {
                 {g.tiles.map((t) => <Tile key={t.user_id} t={t} tz={g.timezone} />)}
               </ul>
             )}
+          <Deadline key={g.due_minute} orgId={org.id} dueMinute={g.due_minute} tz={g.timezone} onSaved={grid.reload} />
         </>
       )}
     </Page>
@@ -172,4 +173,43 @@ function Status({ s }: { s: BpCheckin["status"] | BpTile["status"] }) {
   if (s === "late") return <Badge tone="danger">Late</Badge>;
   if (s === "missing") return <Badge tone="danger">Missing</Badge>;
   return <Badge>Waiting</Badge>;
+}
+
+/** Leads set the daily BP deadline (in the group's timezone). Late and missing flags follow it. */
+function Deadline({ orgId, dueMinute, tz, onSaved }: { orgId: string; dueMinute: number; tz: string; onSaved: () => void }) {
+  const toast = useToast();
+  const [due, setDue] = useState(`${String(Math.floor(dueMinute / 60)).padStart(2, "0")}:${String(dueMinute % 60).padStart(2, "0")}`);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const [h, m] = due.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return setError("Pick a deadline time.");
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/orgs/${orgId}/bp/settings`, { method: "PATCH", body: JSON.stringify({ due_minute: h * 60 + m }) });
+      toast(`BP deadline set to ${fmtMinute(h * 60 + m)}`);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save the deadline. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mt-8 max-w-xl">
+      <h2 className="font-display text-[20px] font-extrabold">Daily deadline</h2>
+      <p className="mt-1 text-sm text-muted">Photos sent after this time are marked late. Times are in {tz.replace("_", " ")}.</p>
+      <form onSubmit={save} className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="text-sm font-medium">Due at
+          <input type="time" value={due} onChange={(e) => setDue(e.target.value)} required className={`${field} w-auto`} />
+        </label>
+        <Button type="submit" variant="primary" busy={busy}>Save deadline</Button>
+      </form>
+      {error && <div className="mt-3"><Notice>{error}</Notice></div>}
+    </Card>
+  );
 }

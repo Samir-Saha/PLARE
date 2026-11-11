@@ -9,15 +9,15 @@ from .conftest import as_user
 
 NY = "America/New_York"
 UTC = timezone.utc
-# Tue Nov 10 2026: New York is UTC-5, so 10:00 PM local is 03:00 UTC on Nov 11.
-DUE = datetime(2026, 11, 11, 3, 0, tzinfo=UTC)
+# Tue Nov 10 2026: New York is UTC-5, so 9:30 AM local is 14:30 UTC the same day.
+DUE = datetime(2026, 11, 10, 14, 30, tzinfo=UTC)
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
 
 # ---- engine ----------------------------------------------------------------------------
 
-def test_default_deadline_is_ten_pm_local():
+def test_default_deadline_is_nine_thirty_am_local():
     assert rules.due_at(date(2026, 11, 10), rules.DEFAULT_DUE_MINUTE, NY) == DUE
 
 
@@ -64,7 +64,7 @@ def test_member_sends_once_and_server_stamps_time(client, world, clock):
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["day"] == "2026-11-10" and body["status"] == "on_time"
-    assert body["submitted_at"].startswith("2026-11-11T01:00")
+    assert body["submitted_at"].startswith("2026-11-10T12:30")  # DUE minus 2 hours
     assert send(client, world).status_code == 409
     me = client.get(url(world, "/me"), headers=as_user("m1@t.demo")).json()
     assert me["today"]["id"] == body["id"]
