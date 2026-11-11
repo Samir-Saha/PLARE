@@ -1,10 +1,12 @@
 import asyncio
+import hmac
 import logging
 from contextlib import asynccontextmanager, suppress
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import push
 from .config import get_settings
 from .db import Base, SessionLocal, engine
 from .routers import gm, group_study, orgs, overview, planner, schedule, study, tasks
@@ -13,8 +15,11 @@ logger = logging.getLogger("plare.reminders")
 
 
 def _reminders_once() -> None:
+    """One scheduler pass: create due reminders, then push anything new to phones."""
     with SessionLocal() as db:
         gm.send_gm_reminders(db)
+    with SessionLocal() as db:
+        push.send_pending(db)
 
 
 async def _reminder_loop() -> None:
@@ -22,7 +27,7 @@ async def _reminder_loop() -> None:
         try:
             await asyncio.to_thread(_reminders_once)
         except Exception:  # keep the loop alive; the next minute retries
-            logger.exception("GM reminder run failed")
+            logger.exception("Reminder run failed")
         await asyncio.sleep(60)
 
 
@@ -62,6 +67,19 @@ def health():
     }
 
 
+@app.post("/cron/tick")
+def cron_tick(x_cron_secret: str = Header("")):
+    """Run one scheduler pass. For an outside scheduler (like cron-job.org) when the host sleeps
+    between requests, as Render's free plan does. Off unless CRON_SECRET is set."""
+    secret = get_settings().cron_secret
+    if not secret:
+        raise HTTPException(404, "Not found")
+    if not hmac.compare_digest(x_cron_secret.encode(), secret.encode()):
+        raise HTTPException(403, "Wrong cron secret")
+    _reminders_once()
+    return {"ok": True}
+
+
 @app.get("/demo/users")
 def demo_users():
     """Demo accounts for the sign-in picker. Empty unless demo sign-in is on."""
@@ -86,3 +104,8 @@ app.include_router(log_routes.router)
 from .routers import excuses as excuse_routes  # noqa: E402
 
 app.include_router(excuse_routes.router)
+
+# Push notification settings.
+from .routers import push as push_routes  # noqa: E402
+
+app.include_router(push_routes.router)
