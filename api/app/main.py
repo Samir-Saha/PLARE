@@ -91,3 +91,8 @@ app.include_router(coffee_routes.router)
 from .routers import excuses as excuse_routes  # noqa: E402
 
 app.include_router(excuse_routes.router)
+
+# BP check-ins (appended for the same reason).
+from .routers import bp as bp_routes  # noqa: E402
+
+app.include_router(bp_routes.router)
