@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError, post, signOut, type AppNotification, type GmInbox, type Me, type Org, type SubmissionRow } from "@/lib/api";
 import { Avatar, Button, Notice, Skeleton, ThemeToggle, ToastProvider, Wordmark, useLoad } from "./ui";
 import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./workspace";
-import { IconBell, IconBook, IconCalendar, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
+import { IconBell, IconBook, IconCalendar, IconTarget, IconCheck, IconClose, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean };
@@ -128,12 +128,13 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
   // Excuses badge for leads: requests waiting for a decision.
   const excusesPending = useLoad(() => (isLead ? api<ExcuseSummary>(`/orgs/${org.id}/excuses/summary`).then((r) => r.pending) : Promise.resolve(0)), [org.id, isLead, pathname]);
 
-  // TODO(nav): the mockup also lists BP check-in and Points. They have no pages or API yet,
-  // so they're left out rather than linking to 404s.
+  // TODO(nav): the mockup also lists Points. It has no page or API yet, so it's left out
+  // rather than linking to a 404.
   const nav: NavItem[] = [
     { href: "/app", label: isLead ? "Dashboard" : "Home", icon: isLead ? IconGrid : IconHome, short: "Home" },
     ...(isLead ? [{ href: "/app/review", label: "Review", icon: IconCheck, count: pending.data ?? undefined }] : []),
     { href: "/app/gm", label: "GM messages", short: "GM", icon: IconSun, count: gmAlerts.data || undefined, alert: true },
+    { href: "/app/bp", label: "BP check-ins", icon: IconTarget, short: "BP" },
     { href: "/app/study", label: "Study hours", icon: IconBook, short: "Study" },
     { href: "/app/schedule", label: "Calendar", icon: IconCalendar },
     { href: "/app/group", label: "Group", icon: IconUsers },
@@ -220,8 +221,8 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
 }
 
 /**
- * In-app GM reminder. Checks once a minute (and after navigation or sending a GM) for unread
- * reminders the API created, and always has a dismiss button.
+ * In-app reminder banner for GM messages and open BP check-ins. Checks once a minute (and after
+ * navigation or sending a GM) for unread reminders the API created, and always has a dismiss button.
  */
 function GmReminderBanner() {
   const pathname = usePathname();
@@ -230,7 +231,7 @@ function GmReminderBanner() {
   useEffect(() => {
     let live = true;
     const load = () => api<AppNotification[]>("/notifications")
-      .then((all) => live && setNotes(all.filter((n) => n.category === "gm" && !n.read)))
+      .then((all) => live && setNotes(all.filter((n) => (n.category === "gm" || n.category === "bp") && !n.read)))
       .catch(() => {});
     load();
     const id = setInterval(load, 60_000);
@@ -252,7 +253,9 @@ function GmReminderBanner() {
     <div role="status" className="flex items-center gap-3 border-b border-line bg-accent-soft px-4 py-2.5 text-sm text-text md:px-9">
       <IconSun width={18} height={18} className="shrink-0 text-accent" />
       <p className="min-w-0 flex-1"><span className="font-semibold">{note.title}.</span> <span className="text-muted">{note.body}</span></p>
-      {pathname !== note.link && note.link && <Link href={note.link} className="shrink-0 font-semibold text-accent underline underline-offset-2">Send it</Link>}
+      {pathname !== note.link && note.link && (
+        <Link href={note.link} className="shrink-0 font-semibold text-accent underline underline-offset-2">{note.category === "bp" ? "Take photo" : "Send it"}</Link>
+      )}
       <button type="button" onClick={dismiss} aria-label="Dismiss reminder" className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-raised hover:text-text">
         <IconClose width={16} height={16} />
       </button>
