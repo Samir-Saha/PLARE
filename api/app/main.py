@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import push
+from . import bp_scheduler, push
 from .config import get_settings
 from .db import Base, SessionLocal, engine
 from .routers import gm, group_study, orgs, overview, planner, schedule, study, tasks
@@ -18,6 +18,8 @@ def _reminders_once() -> None:
     """One scheduler pass: create due reminders, then push anything new to phones."""
     with SessionLocal() as db:
         gm.send_gm_reminders(db)
+    with SessionLocal() as db:
+        bp_scheduler.run(db)
     with SessionLocal() as db:
         push.send_pending(db)
 

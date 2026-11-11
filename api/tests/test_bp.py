@@ -1,9 +1,11 @@
 """BP check-ins: settings, blocked times, calendar confirmation, scheduling, and answering."""
+import random
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from app import bp_scheduler
 from app.db import SessionLocal, now
-from app.models import BusyBlock, User
+from app.models import BpDayPlan, BpPing, BusyBlock, Excuse, LogEntry, Notification, User
 
 from .conftest import as_user
 
@@ -115,3 +117,106 @@ def test_calendar_busy_times_for_confirmation(client, world):
     busy = client.get("/me/bp/calendar", headers=h).json()["busy"]
     assert [b["already_blocked"] for b in busy] == [True, False, False]
     assert client.get("/me/bp/calendar?days=30", headers=h).status_code == 422
+
+
+# --- Scheduler --------------------------------------------------------------------------------
+THU = datetime(2026, 11, 12, 8, 0, tzinfo=NY)  # a fixed Thursday morning
+
+
+def run(at, seed=1):
+    with SessionLocal() as db:
+        return bp_scheduler.run(db, at=at.astimezone(timezone.utc), rng=random.Random(seed))
+
+
+def pings(user_id=None):
+    with SessionLocal() as db:
+        q = db.query(BpPing)
+        if user_id:
+            q = q.filter(BpPing.user_id == user_id)
+        return q.order_by(BpPing.ping_at).all()
+
+
+def test_plans_once_per_pledge_per_day_inside_the_window(client, world):
+    turn_on(client, world, window_start_minute=9 * 60, window_end_minute=17 * 60, checks_per_day=2)
+    assert run(THU)["planned"] == 6  # 3 pledges x 2; brothers never get check-ins
+    assert run(THU)["planned"] == 0
+    for p in pings():
+        assert THU.replace(hour=9) <= p.ping_at and p.closes_at <= THU.replace(hour=17)
+        assert p.closes_at - p.ping_at == timedelta(minutes=15)
+    assert {p.user_id for p in pings()} == {world["m1"], world["m2"], world["m3"]}
+
+
+def test_off_days_disabled_groups_blocked_days_and_excuses_get_nothing(client, world):
+    assert run(THU)["planned"] == 0  # never turned on
+    turn_on(client, world, weekdays=[0])  # Mondays only
+    assert run(THU)["planned"] == 0
+    turn_on(client, world)
+    client.post("/me/bp/blocks", json={"blocks": [{"kind": "other", "weekday": 3, "start_minute": 0, "end_minute": 1440}]},
+                headers=as_user("m1@t.demo"))
+    with SessionLocal() as db:
+        db.add(Excuse(org_id=world["org_a"], user_id=world["m2"], kind="bp", start_day="2026-11-12", end_day="2026-11-12",
+                      reason="exam", status="approved"))
+        db.commit()
+    assert run(THU)["planned"] == 1  # only m3
+    assert {p.user_id for p in pings()} == {world["m3"]}
+    with SessionLocal() as db:
+        assert {(r.user_id, r.planned) for r in db.query(BpDayPlan)} == {(world["m1"], 0), (world["m2"], 0), (world["m3"], 1)}
+
+
+def test_planned_check_ins_avoid_blocks(client, world):
+    turn_on(client, world, window_start_minute=9 * 60, window_end_minute=12 * 60, checks_per_day=1)
+    client.post("/me/bp/blocks", json={"blocks": [{"kind": "interview", "day": "2026-11-12", "start_minute": 540, "end_minute": 690}]},
+                headers=as_user("m1@t.demo"))
+    for seed in range(5):
+        with SessionLocal() as db:
+            db.query(BpPing).delete()
+            db.query(BpDayPlan).delete()
+            db.commit()
+        run(THU, seed)
+        (p,) = pings(world["m1"])
+        assert p.ping_at.astimezone(NY) >= THU.replace(hour=11, minute=40)  # 11:30 end + 10 min buffer
+
+
+def test_open_notifies_then_missed_is_logged_once(client, world):
+    turn_on(client, world, window_start_minute=9 * 60, window_end_minute=17 * 60)
+    run(THU)
+    p = pings(world["m1"])[0]
+    assert run(p.ping_at - timedelta(seconds=1))["opened"] == 0
+    assert run(p.ping_at)["opened"] >= 1
+    with SessionLocal() as db:
+        n = db.query(Notification).filter(Notification.user_id == world["m1"], Notification.category == "bp").one()
+        assert n.link == "/app/bp" and "15 minutes" in n.body
+    run(p.closes_at)
+    run(p.closes_at + timedelta(minutes=5))
+    with SessionLocal() as db:
+        entries = db.query(LogEntry).filter(LogEntry.user_id == world["m1"], LogEntry.kind == "missed_bp_checkin").all()
+        assert len(entries) == 1 and "No photo" in entries[0].detail
+
+
+def test_check_ins_the_server_never_sent_are_not_logged(client, world):
+    turn_on(client, world, window_start_minute=9 * 60, window_end_minute=17 * 60)
+    run(THU)
+    p = pings(world["m1"])[0]
+    run(p.closes_at + timedelta(minutes=1))  # asleep through the whole check-in
+    assert [x.response for x in pings(world["m1"])] == ["not_sent"]
+    with SessionLocal() as db:
+        assert db.query(LogEntry).count() == 0
+
+
+def test_changing_blocks_replans_only_unopened_check_ins_today(client, world):
+    turn_on(client, world)
+    today = datetime.now(NY).date().isoformat()
+    later = now() + timedelta(hours=1)
+    with SessionLocal() as db:
+        db.add(BpDayPlan(org_id=world["org_a"], user_id=world["m1"], day=today, planned=2))
+        db.add(BpPing(org_id=world["org_a"], user_id=world["m1"], day=today, ping_at=later, closes_at=later + timedelta(minutes=15)))
+        db.add(BpPing(org_id=world["org_a"], user_id=world["m1"], day=today, ping_at=now() - timedelta(hours=1),
+                      closes_at=now() - timedelta(minutes=45), notified=True))
+        db.add(BpPing(org_id=world["org_a"], user_id=world["m2"], day=today, ping_at=later, closes_at=later + timedelta(minutes=15)))
+        db.commit()
+    client.post("/me/bp/blocks", json={"blocks": [{"kind": "work", "weekday": 0, "start_minute": 60, "end_minute": 120}]},
+                headers=as_user("m1@t.demo"))
+    assert [p.notified for p in pings(world["m1"])] == [True]  # the sent one stays
+    assert len(pings(world["m2"])) == 1  # other pledges untouched
+    with SessionLocal() as db:
+        assert db.query(BpDayPlan).count() == 0
