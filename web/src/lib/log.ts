@@ -4,7 +4,6 @@ import type { Bar } from "@/components/ui";
 export const LOG_KINDS: [string, string][] = [
   ["late_bp", "Late BP post"],
   ["missed_bp", "Missed BP post"],
-  ["missed_bp_checkin", "Missed BP check-in"],
   ["late_gm", "Late GM message"],
   ["wrong_code", "Wrong GM code"],
   ["missed_gm", "Missed GM message"],
