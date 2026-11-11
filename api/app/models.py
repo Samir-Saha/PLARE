@@ -292,3 +292,31 @@ class MemberTitle(Base):
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(80))
+
+
+class Excuse(Base):
+    """A pledge's request to be excused from a requirement on one or more days.
+
+    Days are YYYY-MM-DD in the group's local timezone. Only an approved excuse counts;
+    other features check it with `app.excuses.is_excused` before flagging someone.
+    """
+
+    __tablename__ = "excuses"
+    __table_args__ = (Index("ix_excuse_org_user", "org_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(16))    # see excuses.KINDS
+    start_day: Mapped[str] = mapped_column(String(10))
+    end_day: Mapped[str] = mapped_column(String(10))
+    reason: Mapped[str] = mapped_column(String(16))  # see excuses.REASONS
+    note: Mapped[str] = mapped_column(Text, default="")
+    file_path: Mapped[str | None] = mapped_column(String(255))  # private storage key, never a public URL
+    file_type: Mapped[str | None] = mapped_column(String(64))
+    late: Mapped[bool] = mapped_column(Boolean, default=False)  # requested after the first day it covers
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | approved | denied
+    reply: Mapped[str] = mapped_column(Text, default="")
+    reviewer_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
