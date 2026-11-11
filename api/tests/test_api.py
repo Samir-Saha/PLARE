@@ -335,3 +335,22 @@ def test_overview_is_lead_only_and_uses_real_records(client, world):
     assert [d["title"] for d in o["deadlines"]] == ["Soon"] and o["deadlines"][0]["done"] == 1
     assert o["overdue_count"] == 3 and {x["title"] for x in o["overdue"]} == {"Late"}
     assert o["activity"][0]["kind"] == "submitted" and o["activity"][0]["who"] == "m1"
+
+
+def test_overview_skips_overdue_work_the_pledge_was_excused_from(client, world):
+    from zoneinfo import ZoneInfo
+
+    from app.models import Excuse
+
+    org, lead = world["org_a"], as_user("lead@t.demo")
+    due = now() - timedelta(hours=3)
+    client.post(f"/orgs/{org}/tasks", json={"title": "GM", "category": "Good Morning Messages", "due_at": due.isoformat()}, headers=lead)
+    assert client.get(f"/orgs/{org}/overview", headers=lead).json()["overdue_count"] == 3
+    day = due.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    with SessionLocal() as db:
+        # m1: approved GM excuse that day. m2: a pending (not approved) one, which must not count.
+        db.add(Excuse(org_id=org, user_id=world["m1"], kind="gm", start_day=day, end_day=day, reason="exam", status="approved"))
+        db.add(Excuse(org_id=org, user_id=world["m2"], kind="all", start_day=day, end_day=day, reason="sick", status="pending"))
+        db.commit()
+    o = client.get(f"/orgs/{org}/overview", headers=lead).json()
+    assert o["overdue_count"] == 2 and "m1" not in {x["user_name"] for x in o["overdue"]}
