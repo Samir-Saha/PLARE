@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     upload_dir: str = "./uploads"
     max_upload_bytes: int = 8 * 1024 * 1024
+    # GPTZero API key for the AI-writing check. Blank means the check shows "not configured".
+    gptzero_api_key: str = ""
     # Run the reminder loop inside the API process (checks once a minute).
     run_reminders: bool = True
 
