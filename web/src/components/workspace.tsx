@@ -91,18 +91,18 @@ export function GroupSwitcher({ me, org, selectOrg, onCreate }: { me: Me; org: O
   return (
     <div ref={wrap} className="relative" onKeyDown={onKey}>
       <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-left transition-colors duration-150 hover:bg-raised">
-        <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-md bg-accent text-[11px] font-bold text-accent-fg">
+        className="flex w-full items-center gap-2.5 rounded-[10px] border border-nav-line bg-nav-hover px-2.5 py-2 text-left text-nav-text transition-colors duration-150 hover:bg-nav-active">
+        <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-md bg-gold text-[11px] font-bold text-gold-fg">
           {org.name.trim().charAt(0).toUpperCase()}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-semibold leading-tight">{org.name}</span>
-          <span className="block truncate text-[11px] text-muted">{roleLabel(org)}</span>
+          <span className="block truncate text-[11px] text-nav-muted">{roleLabel(org)}</span>
         </span>
-        <svg aria-hidden viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-muted"><path d="M8 10l4-4 4 4M8 14l4 4 4-4" /></svg>
+        <svg aria-hidden viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-nav-muted"><path d="M8 10l4-4 4 4M8 14l4 4 4-4" /></svg>
       </button>
       {open && (
-        <div role="menu" aria-label="Groups" className="absolute inset-x-0 top-full z-20 mt-1.5 rounded-xl border border-line bg-surface p-1 shadow-frame">
+        <div role="menu" aria-label="Groups" className="plare-toast absolute inset-x-0 top-full z-20 mt-1.5 origin-top rounded-xl border border-line bg-surface p-1 text-text shadow-frame">
           {me.orgs.map((o, i) => (
             <button key={o.id} ref={(el) => { items.current[i] = el; }} role="menuitemradio" aria-checked={o.id === org.id}
               onClick={() => { selectOrg(o.id); setOpen(false); }}
@@ -131,7 +131,7 @@ export function AccountSheet({ open, onClose, me, org, selectOrg, onCreate, onSi
     <Dialog open={open} onClose={onClose} title={me.name} description={org ? `${roleLabel(org)} · ${org.name}` : me.email} size="sheet">
       {me.orgs.length > 0 && (
         <fieldset className="mb-4">
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted">Groups</legend>
+          <legend className="mb-1.5 text-sm font-semibold text-muted">Groups</legend>
           <div className="overflow-hidden rounded-xl border border-line">
             {me.orgs.map((o) => (
               <button key={o.id} type="button" aria-pressed={o.id === org?.id} onClick={() => { selectOrg(o.id); onClose(); }}
@@ -157,10 +157,11 @@ export function AccountSheet({ open, onClose, me, org, selectOrg, onCreate, onSi
 
 export function MobileTopBar({ me, org, onOpenAccount }: { me: Me; org: Org | null; onOpenAccount: () => void }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-surface/95 px-4 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{org?.name ?? "PLARE"}</span>
+    <header className="sticky top-0 z-10 flex items-center gap-3 bg-nav px-4 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] text-nav-text md:hidden">
+      <span aria-hidden className="grid size-7 shrink-0 grid-cols-3 gap-[2px]">{[0,1,2,1,2,3,2,1,0].map((v, i) => <span key={i} className={`rounded-[1.5px] ${v === 3 ? "bg-gold" : v === 2 ? "bg-nav-text" : v === 1 ? "bg-nav-text/55" : "bg-nav-text/25"}`} />)}</span>
+      <span className="min-w-0 flex-1 truncate font-display text-[17px] font-bold">{org?.name ?? "PLARE"}</span>
       <button type="button" onClick={onOpenAccount} aria-label="Account and groups"
-        className="grid size-11 place-items-center rounded-full transition-colors duration-150 hover:bg-raised">
+        className="grid size-11 place-items-center rounded-full transition-colors duration-150 hover:bg-nav-hover">
         <Avatar name={me.name} className="size-8 text-[11px]" />
       </button>
     </header>

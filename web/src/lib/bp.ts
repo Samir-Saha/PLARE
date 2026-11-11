@@ -7,7 +7,7 @@ export const BLOCK_KINDS: [string, string][] = [
 export const kindLabel = (k: string) => BLOCK_KINDS.find(([v]) => v === k)?.[1] ?? k;
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export type BpSettings = {
+export type BpRandomSettings = {
   enabled: boolean; weekdays: number[]; window_start_minute: number; window_end_minute: number;
   checks_per_day: number; response_minutes: number; class_blocks: boolean; timezone: string;
 };
@@ -21,9 +21,9 @@ export type BpPing = {
   id: string; day: string; ping_at: string; closes_at: string; responded_at: string | null; decline_reason: string; has_photo: boolean;
   response: null | "photo" | "declined" | "missed" | "not_sent";
 };
-export type BpMine = { settings: BpSettings; open: BpPing | null; today: { planned: number; still_to_come: number; photos: number }; history: BpPing[] };
+export type BpMine = { settings: BpRandomSettings; open: BpPing | null; today: { planned: number; still_to_come: number; photos: number }; history: BpPing[] };
 export type BpToday = {
-  day: string; settings: BpSettings;
+  day: string; settings: BpRandomSettings;
   members: { user_id: string; name: string; planned: number; photos: number; declined: number; missed: number; open_now: boolean }[];
   recent: (BpPing & { user_id: string; name: string })[];
 };

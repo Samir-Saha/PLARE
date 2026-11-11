@@ -53,7 +53,7 @@ export function MyPlan({ orgId, version }: { orgId: string; version: number }) {
       <ol className="space-y-3">
         {[...days.entries()].slice(0, 5).map(([day, sessions]) => (
           <li key={day}>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">{day}</p>
+            <p className="text-xs font-medium text-muted">{day}</p>
             <ul className="mt-1 space-y-1">
               {sessions.map((s) => (
                 <li key={s.start} className="flex items-center justify-between gap-3 rounded-lg bg-raised px-3 py-2 text-sm">

@@ -22,8 +22,8 @@ from .db import now
 from .engine import bp_checkin as rules
 from .excuses import is_excused
 from .logbook import add_entry
-from .models import BpDayPlan, BpPing, BpSettings, Membership, Role
-from .routers.bp import block_rules, weekdays_of
+from .models import BpDayPlan, BpPing, BpRandomSettings, Membership, Role
+from .routers.bp_random import block_rules, weekdays_of
 
 _rng = random.SystemRandom()
 
@@ -33,7 +33,7 @@ def _clock(at: datetime, tz: str) -> str:
     return f"{t.hour % 12 or 12}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
 
 
-def plan_today(db: Session, s: BpSettings, at: datetime, rng: random.Random) -> int:
+def plan_today(db: Session, s: BpRandomSettings, at: datetime, rng: random.Random) -> int:
     day = at.astimezone(ZoneInfo(s.timezone)).date()
     if day.weekday() not in weekdays_of(s):
         return 0
@@ -81,7 +81,7 @@ def close_missed(db: Session, at: datetime) -> int:
     missed = 0
     rows = db.scalars(select(BpPing).where(BpPing.notified.is_(True), BpPing.response.is_(None),
                                            BpPing.missed_logged.is_(False), BpPing.closes_at <= at)).all()
-    tz_of = {s.org_id: s.timezone for s in db.scalars(select(BpSettings))}
+    tz_of = {s.org_id: s.timezone for s in db.scalars(select(BpRandomSettings))}
     for p in rows:
         p.missed_logged = True
         p.response = "missed"
@@ -97,7 +97,7 @@ def close_missed(db: Session, at: datetime) -> int:
 
 def run(db: Session, at: datetime | None = None, rng: random.Random | None = None) -> dict:
     at, rng = at or now(), rng or _rng
-    planned = sum(plan_today(db, s, at, rng) for s in db.scalars(select(BpSettings).where(BpSettings.enabled.is_(True))).all())
+    planned = sum(plan_today(db, s, at, rng) for s in db.scalars(select(BpRandomSettings).where(BpRandomSettings.enabled.is_(True))).all())
     result = {"planned": planned, "opened": open_due(db, at), "missed": close_missed(db, at)}
     db.commit()
     return result

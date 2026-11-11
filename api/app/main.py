@@ -102,6 +102,11 @@ from .routers import log as log_routes  # noqa: E402
 
 app.include_router(log_routes.router)
 
+# Coffee chats.
+from .routers import coffee as coffee_routes  # noqa: E402
+
+app.include_router(coffee_routes.router)
+
 # Excused absences (appended for the same reason).
 from .routers import excuses as excuse_routes  # noqa: E402
 
@@ -112,7 +117,9 @@ from .routers import push as push_routes  # noqa: E402
 
 app.include_router(push_routes.router)
 
-# Random BP check-ins.
+# BP check-ins: the daily BP photo, and random check-ins.
 from .routers import bp as bp_routes  # noqa: E402
+from .routers import bp_random as bp_random_routes  # noqa: E402
 
 app.include_router(bp_routes.router)
+app.include_router(bp_random_routes.router)

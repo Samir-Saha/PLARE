@@ -9,9 +9,9 @@ import { useApp } from "@/components/shell";
 import { Badge, Button, Card, ListRow, Notice, Skeleton, field, useLoad, useToast } from "@/components/ui";
 import { BlockedTimes } from "./blocks";
 
-export function MemberBp() {
+export function RandomMemberBp() {
   const { org, me } = useApp();
-  const mine = useLoad(() => api<BpMine>(`/orgs/${org.id}/bp/me`), [org.id]);
+  const mine = useLoad(() => api<BpMine>(`/orgs/${org.id}/bp/random/me`), [org.id]);
   const d = mine.data;
 
   // Look again once a minute, so a check-in that opens while the page is up appears.

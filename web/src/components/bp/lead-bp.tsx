@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api, fileUrl } from "@/lib/api";
-import { RESPONSE_LABEL, WEEKDAYS, kindLabel, type BpGroupBlocks, type BpSettings, type BpToday } from "@/lib/bp";
+import { RESPONSE_LABEL, WEEKDAYS, kindLabel, type BpGroupBlocks, type BpRandomSettings, type BpToday } from "@/lib/bp";
 import { fmtShortDay, fmtTime } from "@/lib/format";
 import { fromTime, toTime } from "@/lib/push";
 import { useApp } from "@/components/shell";
@@ -12,10 +12,10 @@ const ZONES = ["America/New_York", "America/Chicago", "America/Denver", "America
 
 const hours = (m: number) => (m % 60 ? `${(m / 60).toFixed(1)}h` : `${m / 60}h`);
 
-export function LeadBp() {
+export function RandomLeadBp() {
   const { org } = useApp();
-  const today = useLoad(() => api<BpToday>(`/orgs/${org.id}/bp/today`), [org.id]);
-  const blocks = useLoad(() => api<BpGroupBlocks>(`/orgs/${org.id}/bp/blocks`), [org.id]);
+  const today = useLoad(() => api<BpToday>(`/orgs/${org.id}/bp/random/today`), [org.id]);
+  const blocks = useLoad(() => api<BpGroupBlocks>(`/orgs/${org.id}/bp/random/blocks`), [org.id]);
   return (
     <div className="space-y-9">
       {today.data && <SettingsCard initial={today.data.settings} onSaved={today.reload} />}
@@ -28,7 +28,7 @@ export function LeadBp() {
   );
 }
 
-function SettingsCard({ initial, onSaved }: { initial: BpSettings; onSaved: () => void }) {
+function SettingsCard({ initial, onSaved }: { initial: BpRandomSettings; onSaved: () => void }) {
   const { org } = useApp();
   const toast = useToast();
   const [s, setS] = useState(initial);
@@ -36,11 +36,11 @@ function SettingsCard({ initial, onSaved }: { initial: BpSettings; onSaved: () =
   const [error, setError] = useState("");
   const zones = ZONES.includes(s.timezone) ? ZONES : [s.timezone, ...ZONES];
 
-  async function save(next: BpSettings) {
+  async function save(next: BpRandomSettings) {
     setBusy(true);
     setError("");
     try {
-      setS(await api<BpSettings>(`/orgs/${org.id}/bp/settings`, { method: "PUT", body: JSON.stringify(next) }));
+      setS(await api<BpRandomSettings>(`/orgs/${org.id}/bp/random/settings`, { method: "PUT", body: JSON.stringify(next) }));
       toast(next.enabled ? "BP check-in settings saved" : "BP check-ins are off");
       onSaved();
     } catch (e) {

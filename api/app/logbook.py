@@ -97,7 +97,10 @@ def add_entry(
 
 
 def sync_overdue(db: Session, org_id: str) -> int:
-    """Log every past-due assignment that isn't submitted or approved. Safe to call repeatedly."""
+    """Log every past-due assignment that isn't submitted or approved. Safe to call repeatedly.
+
+    Each new entry's created_at is the task's due_at (when it became overdue).
+    """
     rows = db.scalars(
         select(Assignment).join(Task).where(
             Assignment.org_id == org_id,
@@ -113,6 +116,9 @@ def sync_overdue(db: Session, org_id: str) -> int:
         key = f"overdue:{a.id}"
         if key in keys:
             continue
-        add_entry(db, org_id, a.user_id, "overdue_task", f"{a.task.title} was due {local_time(a.task.due_at)}", source_key=key)
+        entry = add_entry(db, org_id, a.user_id, "overdue_task", f"{a.task.title} was due {local_time(a.task.due_at)}", source_key=key)
+        # Date the entry when the work actually became overdue, not when this sync happened to run,
+        # so a first sync doesn't make every past-due task look "new today".
+        entry.created_at = a.task.due_at
         added += 1
     return added

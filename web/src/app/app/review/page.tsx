@@ -28,7 +28,7 @@ export default function Review() {
         </dl>
       )}
 
-      <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Queue</h2>
+      <h2 className="mb-3.5 font-display text-xl font-bold tracking-[-0.01em]">Queue</h2>
 
       {queue.error && <Notice>{queue.error}</Notice>}
       {!queue.data && !queue.error && <Skeleton />}
@@ -39,10 +39,10 @@ export default function Review() {
 
       {p && p.members.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-3.5 font-display text-lg font-semibold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
-          <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
+          <h2 className="mb-3.5 font-display text-xl font-bold tracking-[-0.01em]">Progress by {org.member_label.toLowerCase()}</h2>
+          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
             <table className="w-full text-sm tabular-nums">
-              <thead className="bg-raised text-left text-[13px] text-muted">
+              <thead className="bg-raised text-left text-[14px] text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-normal">Name</th>
                   <th scope="col" className="px-3 py-3 text-right font-normal">Approved</th>
@@ -55,7 +55,7 @@ export default function Review() {
                 {p.members.map((m) => (
                   <tr key={m.user_id}>
                     <th scope="row" className="px-4 py-2.5 text-left font-medium">
-                      <span className="flex items-center gap-2.5"><Avatar name={m.name} className="size-7 text-[10px]" />{m.name}</span>
+                      <span className="flex items-center gap-2.5"><Avatar name={m.name} className="size-7 text-[11px]" />{m.name}</span>
                     </th>
                     <td className="px-3 text-right">{m.approved}/{m.total}</td>
                     <td className="px-3 text-right">{m.submitted}</td>

@@ -43,11 +43,11 @@ export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Yo
     <section>
       {error && <div className="mb-3"><Notice>{error}</Notice></div>}
       <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">{title}</h2>
-        <div role="tablist" aria-label="Task filter" className="flex gap-1 rounded-xl bg-raised p-1">
+        <h2 className="font-display text-xl font-bold tracking-[-0.01em]">{title}</h2>
+        <div role="tablist" aria-label="Task filter" className="flex gap-1 rounded-xl border border-line bg-raised p-1">
           {(["todo", "review", "done"] as const).map((f) => (
             <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
-              className={`min-h-9 rounded-[10px] px-3 text-[13px] font-medium tabular-nums transition-colors ${filter === f ? "bg-surface text-text shadow-sm" : "text-muted hover:text-text"}`}>
+              className={`min-h-9 rounded-[10px] px-3 text-[14px] font-semibold tabular-nums transition-colors ${filter === f ? "bg-accent text-accent-fg shadow-card" : "text-muted hover:bg-surface hover:text-text"}`}>
               {{ todo: "To do", review: "In review", done: "Approved" }[f]} ({groups[f].length})
             </button>
           ))}
@@ -67,7 +67,7 @@ export function TasksSection({ tasks, open, tz, isLead, memberLabel, title = "Yo
 
       {open.data && open.data.length > 0 && (
         <>
-          <h2 className="mb-3.5 mt-9 font-display text-lg font-semibold tracking-[-0.01em]">Open tasks anyone can claim</h2>
+          <h2 className="mb-3.5 mt-9 font-display text-xl font-bold tracking-[-0.01em]">Open tasks anyone can claim</h2>
           <ul className="space-y-2.5">
             {open.data.map((t) => (
               <OpenTaskRow key={t.task_id} task={t} tz={tz} isLead={isLead} onChange={changed} onError={setError} />
@@ -89,7 +89,7 @@ function OpenTaskRow({ task, tz, isLead, onChange, onError }: { task: OpenTask; 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[15px] font-semibold leading-snug">{task.title}</p>
-          <p className="mt-0.5 text-[13px] text-muted">{task.description ? `${task.description} · ` : ""}{fmtDue(task.due_at, tz)}</p>
+          <p className="mt-0.5 text-[14px] text-muted">{task.description ? `${task.description} · ` : ""}{fmtDue(task.due_at, tz)}</p>
         </div>
         <div className="flex gap-2">
           {isLead && (
@@ -152,7 +152,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[15px] font-semibold leading-snug">{task.title}</p>
-            <p className={`mt-0.5 truncate text-[13px] leading-snug ${task.overdue ? "font-medium text-danger" : "text-muted"}`}>
+            <p className={`mt-0.5 truncate text-[14px] leading-snug ${task.overdue ? "font-medium text-danger" : "text-muted"}`}>
               {task.overdue ? "Overdue" : s.label} · {fmtDue(task.due_at, tz)} · {task.category}
             </p>
           </div>
@@ -163,7 +163,7 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
             </CheckButton>
           ) : task.status === "approved" ? <CheckMark label="Approved" /> : null}
         </div>
-        {task.description && <p className={`mt-1.5 text-[13px] text-muted ${openForm ? "" : "line-clamp-1"}`}>{task.description}</p>}
+        {task.description && <p className={`mt-1.5 text-[14px] text-muted ${openForm ? "" : "line-clamp-1"}`}>{task.description}</p>}
         {task.status === "needs_revision" && task.feedback && <div className="mt-3"><Notice tone="warn">Reviewer: {task.feedback}</Notice></div>}
         {task.check && <AiCheckNote check={task.check} own />}
         {openForm && canSubmit && (

@@ -26,6 +26,7 @@ export const IconPlus = (p: P) => <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg
 export const IconGrid = (p: P) => <Svg {...p}><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></Svg>;
 export const IconHome = (p: P) => <Svg {...p}><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" /></Svg>;
 export const IconLog = (p: P) => <Svg {...p}><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4" /></Svg>;
+export const IconCoffee = (p: P) => <Svg {...p}><path d="M4.5 9h12v5.5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" /><path d="M16.5 10.5h1.25a2.75 2.75 0 0 1 0 5.5H16M8.5 3.5v2.5M12.5 3.5v2.5" /></Svg>;
 export const IconNote = (p: P) => <Svg {...p}><path d="M6.5 3.5h8l4 4v11A2.5 2.5 0 0 1 16 21H6.5A2.5 2.5 0 0 1 4 18.5V6a2.5 2.5 0 0 1 2.5-2.5z" /><path d="M14 3.5V8h4.5M8 13l2.5 2.5L15 11" /></Svg>;
 export const IconBell = (p: P) => <Svg {...p}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></Svg>;
 export const IconTarget = (p: P) => <Svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></Svg>;
@@ -36,3 +37,4 @@ export const IconChevronRight = (p: P) => <Svg {...p}><path d="m9.5 6 6 6-6 6" /
 export const IconBolt = (p: P) => <Svg {...p}><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z" /></Svg>;
 export const IconBars = (p: P) => <Svg {...p}><path d="M6 20v-6M12 20V9M18 20V4" /></Svg>;
 export const IconAlert = (p: P) => <Svg {...p}><path d="M12 4 3 19.5h18z" /><path d="M12 10v4M12 17v.01" /></Svg>;
+export const IconCamera = (p: P) => <Svg {...p}><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.5" /></Svg>;

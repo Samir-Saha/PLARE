@@ -295,6 +295,31 @@ class MemberTitle(Base):
     title: Mapped[str] = mapped_column(String(80))
 
 
+class CoffeeChatBrother(Base):
+    """A brother each pledge needs a coffee chat with, by a deadline. Leads manage the list."""
+
+    __tablename__ = "coffee_chat_brothers"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    first_name: Mapped[str] = mapped_column(String(60))
+    last_name: Mapped[str] = mapped_column(String(60))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class CoffeeChatCompletion(Base):
+    """A pledge marked their coffee chat with one brother as done."""
+
+    __tablename__ = "coffee_chat_completions"
+    __table_args__ = (UniqueConstraint("brother_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    brother_id: Mapped[str] = mapped_column(ForeignKey("coffee_chat_brothers.id", ondelete="CASCADE"), index=True)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    completed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
 class Excuse(Base):
     """A pledge's request to be excused from a requirement on one or more days.
 
@@ -471,10 +496,13 @@ class PushDelivery(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
 
 
-class BpSettings(Base):
-    """A group's random BP check-in rules. Off until a brother turns it on."""
+class BpRandomSettings(Base):
+    """A group's random BP check-in rules. Off until a brother turns it on.
 
-    __tablename__ = "bp_settings"
+    Separate from BpSettings (the daily BP photo deadline): groups can use either or both.
+    """
+
+    __tablename__ = "bp_random_settings"
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     weekdays: Mapped[str] = mapped_column(String(16), default="0,1,2,3,4")  # 0 = Monday, comma-separated
@@ -539,4 +567,28 @@ class BpPing(Base):
     file_path: Mapped[str | None] = mapped_column(String(255))
     file_type: Mapped[str | None] = mapped_column(String(64))
     missed_logged: Mapped[bool] = mapped_column(Boolean, default=False)
+class BpSettings(Base):
+    """A group's BP check-in rules. The deadline is in `timezone`."""
+
+    __tablename__ = "bp_settings"
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    due_minute: Mapped[int] = mapped_column(Integer, default=22 * 60)  # minutes after local midnight
+    timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
+
+
+class BpCheckin(Base):
+    """One BP photo per member per day, taken in the app and timestamped by the server."""
+
+    __tablename__ = "bp_checkins"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD in the group's timezone
+    caption: Mapped[str] = mapped_column(String(280), default="")
+    file_path: Mapped[str] = mapped_column(String(255))
+    file_type: Mapped[str] = mapped_column(String(32))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)  # deadline when it was taken
+    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
     user: Mapped[User] = relationship()

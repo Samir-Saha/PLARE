@@ -113,3 +113,25 @@ def test_summary_includes_members_with_zero(client, world):
     assert s["members"][0] == {"user_id": world["m1"], "name": "m1", "count": 2}
     assert {r["name"]: r["count"] for r in s["members"]} == {"m1": 2, "m2": 0, "m3": 0}
     assert s["today"] == 2 and s["total"] == 2
+
+
+def test_overdue_entries_are_dated_when_the_task_became_overdue(client, world):
+    due = now() - timedelta(days=2, hours=3)
+    r = client.post(f"/orgs/{world['org_a']}/tasks", json={"title": "BP post", "due_at": due.isoformat()}, headers=LEAD)
+    assert r.status_code == 201
+    rows = client.get(log_url(world), headers=LEAD).json()
+    assert len(rows) == 3
+    with SessionLocal() as db:
+        stamps = {e.created_at for e in db.query(LogEntry).filter_by(kind="overdue_task")}
+    assert len(stamps) == 1 and abs((stamps.pop() - due).total_seconds()) < 1
+    # Two days old, so none of them count as new today.
+    assert client.get(log_url(world, "/summary"), headers=LEAD).json()["today"] == 0
+
+
+def test_identical_entries_stay_separate_rows_in_the_api(client, world):
+    for who in ("m1", "m2", "m3"):
+        assert add(client, world, who, kind="other", detail="Left study session early.").status_code == 201
+    rows = client.get(log_url(world), headers=LEAD).json()
+    # The page groups these visually; the API still returns one row per pledge.
+    assert sorted(r["user_id"] for r in rows) == sorted(world[w] for w in ("m1", "m2", "m3"))
+    assert {r["detail"] for r in rows} == {"Left study session early."}

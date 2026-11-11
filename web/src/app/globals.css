@@ -1,52 +1,91 @@
 @import "tailwindcss";
 
-/* Semantic tokens. Components only use these names, never raw colors. */
+/*
+ * Varsity navy. Semantic tokens only; components never use raw colors.
+ * Ink navy carries structure (sidebar, primary actions), cobalt carries interaction and data,
+ * gold is the one highlight (active page, the best slot, a win). Paper sits behind everything.
+ */
 :root {
-  --bg: #e9eef5;            /* page behind the app frame */
+  --bg: #eef2f7;            /* paper behind panels */
   --surface: #ffffff;
-  --raised: #f5f8fc;        /* side rails, table headers, stat tiles */
-  --line: #e6ebf2;
-  --text: #0e1b2c;
-  --muted: #5a6577;
-  --accent: #0e2747;        /* navy: primary buttons, active nav, hero card */
+  --raised: #f5f7fb;        /* table heads, stat tiles, inset areas */
+  --line: #dfe5ee;
+  --line-strong: #c6d0de;
+  --text: #0a1a33;
+  --muted: #536079;
+  --accent: #0a1a33;        /* ink navy: primary buttons, hero cards */
   --accent-fg: #ffffff;
-  --accent-soft: #dce8f7;   /* badges, light card, secondary buttons */
-  --accent-2: #2f5e9e;      /* mid blue card */
+  --accent-soft: #e3eafb;   /* badges, secondary buttons */
+  --accent-2: #2d5bd8;      /* cobalt: links, focus, mid data */
   --accent-2-fg: #ffffff;
-  --accent-3: #9dbce3;      /* light accent bars */
-  --on-accent-muted: #b9cce6; /* secondary text on navy */
-  --ok: #1e7b4f;
-  --ok-soft: #e6f4ec;
-  --warn: #a15c07;
-  --warn-soft: #fcf1de;
-  --danger: #b42318;
-  --danger-soft: #fce8e6;
-  --frame-shadow: 0 1px 2px rgb(14 39 71 / 0.04), 0 24px 64px -24px rgb(14 39 71 / 0.22);
+  --accent-3: #9fb6ef;      /* light data bars */
+  --on-accent-muted: #b4c2dc;
+  --gold: #e5a62a;
+  --gold-fg: #1d1404;
+  --gold-soft: #fbefd2;
+  --gold-ink: #8a5a00;      /* gold used as text on light grounds */
+  --nav-bg: #0a1a33;
+  --nav-text: #e8edf7;
+  --nav-muted: #8d9bb7;
+  --nav-hover: #15284a;
+  --nav-active: #1b3158;
+  --nav-line: #1d3157;
+  --ok: #137043;
+  --ok-soft: #dcf3e6;
+  --warn: #8a4d00;
+  --warn-soft: #fcebc8;
+  --danger: #b3261e;
+  --danger-soft: #fde0dc;
+  --frame-shadow: 0 1px 2px rgb(10 26 51 / 0.06), 0 28px 60px -28px rgb(10 26 51 / 0.38);
+  --card-shadow: 0 1px 0 rgb(10 26 51 / 0.04);
+  --pop-shadow: 0 1px 2px rgb(10 26 51 / 0.08), 0 16px 32px -16px rgb(10 26 51 / 0.32);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #0a1424;
-  --surface: #101d33;
-  --raised: #15253f;
-  --line: #22355a;
-  --text: #e6edf7;
-  --muted: #93a3bc;
-  --accent: #9dbce3;
-  --accent-fg: #0e2747;
-  --accent-soft: #1c3358;
-  --accent-2: #2f5e9e;
-  --accent-2-fg: #ffffff;
-  --accent-3: #4f7dba;
-  --on-accent-muted: #2a4570;
-  --ok: #5fd39b;
-  --ok-soft: #12301f;
-  --warn: #f0be5e;
-  --warn-soft: #35290f;
-  --danger: #ff8f86;
-  --danger-soft: #3d1c1f;
-  --frame-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 64px -24px rgb(0 0 0 / 0.6);
+  --bg: #07111f;
+  --surface: #0d1a2e;
+  --raised: #13233b;
+  --line: #1f3352;
+  --line-strong: #2d4670;
+  --text: #eef2f9;
+  --muted: #a3b1c9;
+  --accent: #dfe7f7;
+  --accent-fg: #0a1a33;
+  --accent-soft: #1a2d4f;
+  --accent-2: #7b9ef5;
+  --accent-2-fg: #07111f;
+  --accent-3: #4467b8;
+  --on-accent-muted: #3f5478;
+  --gold: #f0b94a;
+  --gold-fg: #1d1404;
+  --gold-soft: #3a2c0c;
+  --gold-ink: #f3c768;
+  --nav-bg: #050c18;
+  --nav-text: #e8edf7;
+  --nav-muted: #8392ad;
+  --nav-hover: #0f1d33;
+  --nav-active: #16294a;
+  --nav-line: #15243d;
+  --ok: #6fdca6;
+  --ok-soft: #12321f;
+  --warn: #f5c76a;
+  --warn-soft: #3b2d10;
+  --danger: #ff9d94;
+  --danger-soft: #431c20;
+  --frame-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 28px 60px -28px rgb(0 0 0 / 0.8);
+  --card-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 32px -16px rgb(0 0 0 / 0.85);
   color-scheme: dark;
+}
+
+/* Larger small text: Tailwind's 12px/14px defaults read too small in this UI. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -54,6 +93,7 @@
   --color-surface: var(--surface);
   --color-raised: var(--raised);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -63,6 +103,16 @@
   --color-accent-2-fg: var(--accent-2-fg);
   --color-accent-3: var(--accent-3);
   --color-on-accent-muted: var(--on-accent-muted);
+  --color-gold: var(--gold);
+  --color-gold-fg: var(--gold-fg);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-ink: var(--gold-ink);
+  --color-nav: var(--nav-bg);
+  --color-nav-text: var(--nav-text);
+  --color-nav-muted: var(--nav-muted);
+  --color-nav-hover: var(--nav-hover);
+  --color-nav-active: var(--nav-active);
+  --color-nav-line: var(--nav-line);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
@@ -70,28 +120,80 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --shadow-frame: var(--frame-shadow);
+  --shadow-card: var(--card-shadow);
+  --shadow-pop: var(--pop-shadow);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-display: var(--font-space-grotesk), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  transition: background-color 240ms ease, color 240ms ease;
 }
 
-h1, h2, h3 {
+/* Display face: Archivo, semi-condensed and heavy, tight tracking that loosens as size drops. */
+h1, h2, h3, .font-display {
   font-family: var(--font-display);
+  font-stretch: 88%;
+  font-variation-settings: "wdth" 88;
 }
+h1 { letter-spacing: -0.025em; line-height: 1.02; }
+h2 { letter-spacing: -0.015em; }
+h3 { letter-spacing: -0.005em; }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid var(--accent-2);
   outline-offset: 2px;
+}
+
+::selection { background: var(--gold); color: var(--gold-fg); }
+
+/* Dialogs grow from slightly smaller, the backdrop fades. Native <dialog> + @starting-style. */
+dialog[open] {
+  animation: plare-materialize 220ms var(--ease-out-soft);
+}
+dialog::backdrop {
+  background: rgb(5 12 24 / 0.5);
+  backdrop-filter: blur(3px);
+  animation: plare-fade 200ms ease-out;
+}
+@keyframes plare-materialize {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes plare-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes plare-toast {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.plare-toast { animation: plare-toast 260ms var(--ease-out-soft); }
+
+/* Landing hero: the availability grid fills in, then the best slot locks. */
+@keyframes plare-cell {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes plare-lock {
+  0% { opacity: 0; transform: scale(1.5); }
+  60% { opacity: 1; transform: scale(0.96); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes plare-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+@media (prefers-reduced-transparency: reduce) {
+  dialog::backdrop { backdrop-filter: none; }
 }

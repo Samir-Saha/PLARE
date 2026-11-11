@@ -34,21 +34,21 @@ export function CalendarRail({ title, items, tz, loading, error, footer, emptyTe
   return (
     <div className="flex h-full flex-col">
       {/* TODO(notifications): the mockup's bell button opens a notification center that isn't built yet. */}
-      <h2 className="mb-6 font-display text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+      <h2 className="mb-6 font-display text-xl font-bold tracking-[-0.01em]">{title}</h2>
       {error && <p className="text-sm text-danger">{error}</p>}
       {loading && <Skeleton rows={2} />}
-      {!loading && !error && days.length === 0 && <p className="text-[13px] text-muted">{emptyText ?? "Nothing scheduled yet."}</p>}
+      {!loading && !error && days.length === 0 && <p className="text-[14px] text-muted">{emptyText ?? "Nothing scheduled yet."}</p>}
       <div className="space-y-6">
         {days.map(([day, list]) => (
           <section key={day}>
-            <h3 className="mb-3 text-xs font-normal text-muted">{day}</h3>
+            <h3 className="mb-3 text-[13px] font-bold text-accent-2">{day}</h3>
             <ul className="space-y-4">
               {list.map((it) => (
                 <li key={it.id} className="flex gap-3">
-                  <time dateTime={it.at} className="w-[68px] shrink-0 pt-0.5 text-[13px] font-semibold tabular-nums">{fmtTime(it.at, tz)}</time>
-                  <div className={`min-w-0 flex-1 border-l-2 pl-3 ${border[it.tone]}`}>
+                  <time dateTime={it.at} className="w-[72px] shrink-0 pt-0.5 text-[15px] font-bold tabular-nums">{fmtTime(it.at, tz)}</time>
+                  <div className={`min-w-0 flex-1 border-l-[3px] pl-3 ${border[it.tone]}`}>
                     <p className="text-xs text-muted">{it.kind}</p>
-                    <p className="text-[13px] font-semibold leading-snug">{it.title}</p>
+                    <p className="text-[15px] font-semibold leading-snug">{it.title}</p>
                     {it.extra}
                   </div>
                 </li>
@@ -64,7 +64,7 @@ export function CalendarRail({ title, items, tz, loading, error, footer, emptyTe
 
 export function RailFooterLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="flex min-h-11 items-center justify-center rounded-xl border border-dashed border-accent-3 text-[13px] font-semibold text-accent hover:bg-surface">
+    <Link href={href} className="flex min-h-11 items-center justify-center rounded-xl border-[1.5px] border-dashed border-accent-2 text-[14px] font-bold text-accent hover:bg-surface hover:border-solid">
       {children}
     </Link>
   );

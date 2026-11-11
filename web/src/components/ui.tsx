@@ -3,13 +3,14 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { IconCheck, IconMoon, IconSun } from "./icons";
 
-export function Wordmark({ className = "" }: { className?: string }) {
+export function Wordmark({ className = "", tone = "default" }: { className?: string; tone?: "default" | "nav" }) {
+  const cell = tone === "nav" ? ["bg-nav-text/25", "bg-nav-text/55", "bg-nav-text"] : ["bg-accent-3", "bg-accent-2", "bg-accent"];
+  // A 3x3 slice of an availability grid: darker means more people free, gold is the best hour.
+  const map = [0, 1, 2, 1, 2, 3, 2, 1, 0];
   return (
-    <span className={`inline-flex items-center gap-2.5 font-display font-bold tracking-[0.01em] text-text ${className}`}>
-      <span aria-hidden className="flex h-[0.95em] items-end gap-[0.14em]">
-        <span className="h-[55%] w-[0.22em] rounded-[2px] bg-accent-3" />
-        <span className="h-[78%] w-[0.22em] rounded-[2px] bg-accent-2" />
-        <span className="h-full w-[0.22em] rounded-[2px] bg-accent" />
+    <span className={`inline-flex items-center gap-2.5 font-display font-extrabold tracking-[0.02em] ${tone === "nav" ? "text-nav-text" : "text-text"} ${className}`}>
+      <span aria-hidden className="grid size-[0.95em] grid-cols-3 gap-[0.08em]">
+        {map.map((v, i) => <span key={i} className={`rounded-[1.5px] ${v === 3 ? "bg-gold" : cell[v]}`} />)}
       </span>
       PLARE
     </span>
@@ -18,11 +19,11 @@ export function Wordmark({ className = "" }: { className?: string }) {
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:opacity-90",
-  secondary: "bg-accent-soft text-accent hover:bg-accent-3/45",
+  primary: "bg-accent text-accent-fg shadow-[inset_0_-2px_0_rgb(0_0_0/0.18)] hover:bg-accent/90",
+  secondary: "bg-accent-soft text-accent hover:bg-accent-3/40 dark:text-text",
   ghost: "text-muted hover:bg-raised hover:text-text",
-  danger: "border border-line bg-surface text-danger hover:bg-danger-soft",
-  outline: "border border-line bg-surface text-text hover:bg-raised",
+  danger: "border border-danger/40 bg-surface text-danger hover:border-danger hover:bg-danger-soft",
+  outline: "border border-line-strong bg-surface text-text hover:border-accent-2 hover:bg-raised",
 };
 
 export function Button({ variant = "secondary", busy, className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; busy?: boolean }) {
@@ -31,7 +32,7 @@ export function Button({ variant = "secondary", busy, className = "", children, 
       {...rest}
       disabled={rest.disabled || busy}
       aria-busy={busy || undefined}
-      className={`relative inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,color,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`relative inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-semibold transition-[background-color,color,opacity,border-color,box-shadow,scale] duration-150 ease-out active:scale-[0.97] active:duration-75 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 ${variants[variant]} ${className}`}
     >
       {/* Busy keeps the label in place (no width jump) and overlays a spinner. */}
       <span className={`inline-flex items-center gap-2 ${busy ? "invisible" : ""}`}>{children}</span>
@@ -43,7 +44,7 @@ export function Button({ variant = "secondary", busy, className = "", children, 
 /** Link styled as a button, for navigation that looks like an action. */
 export function ButtonLink({ href, variant = "secondary", className = "", children, ...rest }: { href: string; variant?: Variant; className?: string; children: ReactNode; "aria-label"?: string }) {
   return (
-    <Link href={href} {...rest} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${variants[variant]} ${className}`}>
+    <Link href={href} {...rest} className={`inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-semibold transition-[background-color,color,border-color,scale] duration-150 ease-out active:scale-[0.97] active:duration-75 ${variants[variant]} ${className}`}>
       {children}
     </Link>
   );
@@ -54,27 +55,29 @@ export function Spinner({ className = "size-4" }: { className?: string }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[18px] border border-line bg-surface p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-line bg-surface p-5 shadow-card ${className}`}>{children}</section>;
 }
 
 const tones = {
-  neutral: "bg-raised text-muted border border-line",
-  accent: "bg-accent-soft text-accent",
-  ok: "bg-ok-soft text-ok",
-  warn: "bg-warn-soft text-warn",
-  danger: "bg-danger-soft text-danger",
+  neutral: "bg-raised text-text border border-line",
+  accent: "bg-accent-soft text-accent border border-accent-3/50 dark:text-text",
+  gold: "bg-gold-soft text-gold-ink border border-gold/40",
+  ok: "bg-ok-soft text-ok border border-ok/30",
+  warn: "bg-warn-soft text-warn border border-warn/30",
+  danger: "bg-danger-soft text-danger border border-danger/30",
 };
 
 export function Badge({ tone = "neutral", children }: { tone?: keyof typeof tones; children: ReactNode }) {
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
 }
 
 export function PageHeader({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.01em] sm:text-[32px]">{title}</h1>
-        {hint && <p className="mt-1 text-sm text-muted tabular-nums">{hint}</p>}
+        <span aria-hidden className="mb-3 block h-1 w-8 rounded-full bg-gold" />
+        <h1 className="font-display text-[34px] font-extrabold sm:text-[44px]">{title}</h1>
+        {hint && <p className="mt-2 text-base font-medium text-muted tabular-nums">{hint}</p>}
       </div>
       {action && <div className="flex items-center gap-3">{action}</div>}
     </header>
@@ -85,8 +88,8 @@ export function PageHeader({ title, hint, action }: { title: string; hint?: stri
 export function SectionHeader({ title, href, linkLabel, id, className = "" }: { title: string; href?: string; linkLabel?: string; id?: string; className?: string }) {
   return (
     <div className={`mb-3.5 flex items-baseline justify-between gap-3 ${className}`}>
-      <h2 id={id} className="font-display text-lg font-semibold tracking-[-0.01em]">{title}</h2>
-      {href && linkLabel && <Link href={href} className="text-[13px] font-medium text-accent underline underline-offset-2 tabular-nums">{linkLabel}</Link>}
+      <h2 id={id} className="font-display text-[22px] font-extrabold">{title}</h2>
+      {href && linkLabel && <Link href={href} className="text-[14px] font-semibold text-accent-2 underline decoration-accent-2/30 decoration-2 underline-offset-4 transition-colors hover:decoration-accent-2 tabular-nums">{linkLabel}</Link>}
     </div>
   );
 }
@@ -98,12 +101,12 @@ export function SectionHeader({ title, href, linkLabel, id, className = "" }: { 
 export function Page({ children, rail, railLabel, railOnMobile = true }: { children: ReactNode; rail?: ReactNode; railLabel?: string; railOnMobile?: boolean }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col xl:flex-row">
-      <div className="min-w-0 flex-1 px-5 pb-10 pt-6 sm:px-8 md:px-10 md:pt-9">
+      <div className="min-w-0 flex-1 px-5 pb-12 pt-7 sm:px-8 md:px-10 md:pt-10">
         <div className="mx-auto w-full max-w-[1080px]">{children}</div>
       </div>
       {rail && (
         <aside aria-label={railLabel}
-          className={`border-t border-line bg-raised px-5 py-8 sm:px-8 xl:w-[280px] xl:shrink-0 xl:border-l xl:border-t-0 xl:px-6 xl:pt-8 ${railOnMobile ? "" : "hidden xl:block"}`}>
+          className={`border-t border-line bg-surface px-5 py-8 sm:px-8 xl:w-[280px] xl:shrink-0 xl:border-l xl:border-t-0 xl:px-6 xl:pt-8 ${railOnMobile ? "" : "hidden xl:block"}`}>
           {rail}
         </aside>
       )}
@@ -113,8 +116,8 @@ export function Page({ children, rail, railLabel, railOnMobile = true }: { child
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-dashed border-line bg-raised px-4 py-8 text-center">
-      <p className="font-medium">{title}</p>
+    <div className="rounded-2xl border border-dashed border-line-strong bg-surface/60 px-4 py-9 text-center">
+      <p className="text-base font-semibold">{title}</p>
       {children && <div className="mx-auto mt-1 max-w-sm text-sm text-muted">{children}</div>}
     </div>
   );
@@ -122,7 +125,7 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 export function Notice({ tone = "danger", children }: { tone?: "danger" | "ok" | "warn"; children: ReactNode }) {
   return (
-    <p role={tone === "danger" ? "alert" : "status"} className={`rounded-xl px-3 py-2 text-sm ${tones[tone]}`}>
+    <p role={tone === "danger" ? "alert" : "status"} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium ${tones[tone]}`}>
       {children}
     </p>
   );
@@ -132,7 +135,7 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div aria-busy="true" aria-label="Loading" className="space-y-2.5">
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="h-16 animate-pulse rounded-[14px] bg-line/60" />
+        <div key={i} className="h-16 animate-pulse rounded-xl bg-line/70" />
       ))}
     </div>
   );
@@ -172,7 +175,7 @@ export function initials(name: string) {
 
 export function Avatar({ name, className = "size-9 text-xs" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-display font-semibold text-accent ${className}`}>
+    <span aria-hidden className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-display font-bold text-accent ring-1 ring-accent-3/60 dark:text-text ${className}`}>
       {initials(name)}
     </span>
   );
@@ -182,10 +185,10 @@ export function Avatar({ name, className = "size-9 text-xs" }: { name: string; c
 export function AvatarStack({ names, max = 2, ring = "ring-surface" }: { names: string[]; max?: number; ring?: string }) {
   const shown = names.slice(0, max);
   const rest = names.length - shown.length;
-  const chip = `-ml-1.5 grid h-7 min-w-7 place-items-center rounded-full px-1 text-[10px] font-bold tabular-nums ring-2 first:ml-0 ${ring}`;
+  const chip = `-ml-1.5 grid h-7 min-w-7 place-items-center rounded-full px-1 text-[11px] font-bold tabular-nums ring-2 first:ml-0 ${ring}`;
   return (
     <span role="img" aria-label={`${names.length} ${names.length === 1 ? "person" : "people"}`} className="flex items-center">
-      {rest > 0 && <span aria-hidden className={`${chip} relative z-10 bg-surface text-[9px] text-accent`}>+{rest}</span>}
+      {rest > 0 && <span aria-hidden className={`${chip} relative z-10 bg-surface text-[10px] text-accent`}>+{rest}</span>}
       {shown.map((n, i) => (
         <span key={n + i} aria-hidden className={`${chip} ${i % 2 ? "bg-surface text-accent" : "bg-accent-3 text-accent"}`}>{initials(n)}</span>
       ))}
@@ -193,7 +196,7 @@ export function AvatarStack({ names, max = 2, ring = "ring-surface" }: { names: 
   );
 }
 
-export function Progress({ value, label, track = "bg-line", fill = "bg-accent", className = "h-1.5" }: { value: number; label: string; track?: string; fill?: string; className?: string }) {
+export function Progress({ value, label, track = "bg-line", fill = "bg-accent", className = "h-2" }: { value: number; label: string; track?: string; fill?: string; className?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
     <div className={`overflow-hidden rounded-full ${track} ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
@@ -203,9 +206,9 @@ export function Progress({ value, label, track = "bg-line", fill = "bg-accent", 
 }
 
 export const cardTones = {
-  navy: { box: "bg-accent text-accent-fg", sub: "text-on-accent-muted", track: "bg-on-accent-muted/30", fill: "bg-accent-fg", ring: "ring-accent" },
+  navy: { box: "bg-accent text-accent-fg", sub: "text-on-accent-muted", track: "bg-on-accent-muted/30", fill: "bg-gold", ring: "ring-accent" },
   mid: { box: "bg-accent-2 text-accent-2-fg", sub: "text-accent-2-fg/85", track: "bg-accent-2-fg/25", fill: "bg-accent-2-fg", ring: "ring-accent-2" },
-  light: { box: "bg-accent-soft text-text", sub: "text-muted", track: "bg-surface/80", fill: "bg-accent", ring: "ring-accent-soft" },
+  light: { box: "bg-accent-soft text-text", sub: "text-muted", track: "bg-surface/80", fill: "bg-accent-2", ring: "ring-accent-soft" },
 };
 
 /** Dashboard summary card: people + period on top, title, one-line stat, bar, footnote. */
@@ -214,15 +217,15 @@ export function SummaryCard({ tone, title, stat, pct, people, meta, foot }: {
 }) {
   const t = cardTones[tone];
   return (
-    <section className={`flex min-h-[196px] flex-col rounded-[18px] px-[22px] pb-5 pt-[22px] ${t.box}`}>
+    <section className={`flex min-h-[196px] flex-col rounded-2xl px-[22px] pb-5 pt-[22px] ${t.box}`}>
       <div className="mb-5 flex min-h-7 items-center justify-between gap-2">
         {people && people.length > 0 ? <AvatarStack names={people} ring={t.ring} /> : <span />}
-        {meta && <span className={`text-xs tabular-nums ${t.sub}`}>{meta}</span>}
+        {meta && <span className={`text-[13px] font-medium tabular-nums ${t.sub}`}>{meta}</span>}
       </div>
-      <h2 className="font-display text-xl font-semibold leading-tight">{title}</h2>
-      <p className={`mt-1 text-[13px] leading-snug tabular-nums ${t.sub}`}>{stat}</p>
+      <h2 className="font-display text-[24px] font-extrabold leading-tight">{title}</h2>
+      <p className={`mt-1.5 text-[15px] font-medium leading-snug tabular-nums ${t.sub}`}>{stat}</p>
       {pct !== undefined && <div className="mt-auto pt-5"><Progress value={pct} label={title} track={t.track} fill={t.fill} /></div>}
-      {foot && <p className={`mt-3 text-xs tabular-nums ${t.sub}`}>{foot}</p>}
+      {foot && <p className={`mt-3 text-[13px] font-medium tabular-nums ${t.sub}`}>{foot}</p>}
     </section>
   );
 }
@@ -234,9 +237,9 @@ export function SummaryRow({ children }: { children: ReactNode }) {
 /** One stat in a <dl>: raised tile, big display number on top, small muted label below. */
 export function StatTile({ label, value, tone }: { label: string; value: ReactNode; tone?: "danger" }) {
   return (
-    <div className="flex flex-col-reverse justify-end rounded-[14px] bg-raised px-4 py-4">
-      <dt className="mt-1.5 text-xs text-muted">{label}</dt>
-      <dd className={`font-display text-[26px] font-semibold leading-none tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
+    <div className="flex flex-col-reverse justify-end rounded-xl border border-line bg-surface px-4 py-4">
+      <dt className="mt-2 text-sm font-medium text-muted">{label}</dt>
+      <dd className={`font-display text-[34px] font-extrabold leading-none tabular-nums ${tone === "danger" ? "text-danger" : ""}`}>{value}</dd>
     </div>
   );
 }
@@ -257,8 +260,8 @@ export function barFor(key: string): Bar {
  */
 export function ListRow({ bar = "navy", className = "", end, children }: { bar?: Bar | null; className?: string; end?: ReactNode; children: ReactNode }) {
   return (
-    <li className="flex items-center gap-4 rounded-[14px] border border-line bg-surface py-3.5 pl-4 pr-3">
-      {bar && <span aria-hidden className={`my-0.5 w-[3px] shrink-0 self-stretch rounded-full ${bars[bar]}`} />}
+    <li className="flex items-center gap-4 rounded-xl border border-line bg-surface py-3.5 pl-4 pr-3 transition-[border-color,box-shadow] duration-150 hover:border-line-strong hover:shadow-pop">
+      {bar && <span aria-hidden className={`my-0.5 w-1 shrink-0 self-stretch rounded-full ${bars[bar]}`} />}
       <div className={`min-w-0 flex-1 ${className}`}>{children}</div>
       {end}
     </li>
@@ -272,7 +275,7 @@ export function CheckButton({ active, label, children, className = "", ...rest }
   return (
     <button type="button" aria-label={label} title={label} {...rest}
       className={`group grid size-11 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
-      <span className={`${circle} ${active ? "bg-accent text-accent-fg" : "border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent"}`}>
+      <span className={`${circle} ${active ? "bg-accent text-accent-fg" : "border-2 border-muted/50 text-transparent group-hover:border-accent group-hover:text-accent group-active:scale-90"}`}>
         {children ?? <IconCheck width={16} height={16} strokeWidth={2.25} />}
       </span>
     </button>
@@ -292,7 +295,7 @@ export function CheckMark({ label }: { label: string }) {
 export function CheckLink({ href, label }: { href: string; label: string }) {
   return (
     <Link href={href} aria-label={label} title={label} className="group grid size-11 shrink-0 place-items-center rounded-full">
-      <span className={`${circle} border-[1.5px] border-muted/35 text-transparent group-hover:border-accent group-hover:text-accent`}>
+      <span className={`${circle} border-2 border-muted/50 text-transparent group-hover:border-accent group-hover:text-accent`}>
         <IconCheck width={16} height={16} strokeWidth={2.25} />
       </span>
     </Link>
@@ -301,16 +304,16 @@ export function CheckLink({ href, label }: { href: string; label: string }) {
 
 /** Shared classes for bordered tables with a raised header. */
 export const table = {
-  wrap: "overflow-x-auto rounded-[14px] border border-line bg-surface",
+  wrap: "overflow-x-auto rounded-xl border border-line bg-surface",
   table: "w-full text-sm tabular-nums",
-  head: "bg-raised text-left text-[13px] text-muted",
-  th: "px-4 py-3 font-normal",
+  head: "border-b border-line bg-raised text-left text-[13px] text-muted",
+  th: "px-4 py-3 font-semibold",
   body: "divide-y divide-line",
   cell: "px-4 py-3",
 };
 
 /** Shared class for text inputs and selects. */
-export const field = "mt-1 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm font-normal text-text";
+export const field = "mt-1 w-full rounded-[10px] border border-line-strong bg-surface px-3 py-2.5 text-sm font-normal text-text transition-colors hover:border-accent-3 focus:border-accent-2";
 
 /** Loads data on mount and whenever deps change; exposes reload for after mutations. */
 export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
@@ -350,15 +353,15 @@ export function Dialog({ open, onClose, title, description, children, size = "md
     if (!open && d.open) d.close();
   }, [open]);
   const shape = size === "sheet"
-    ? "mt-auto mb-0 w-full max-w-none rounded-t-[20px] pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:m-auto sm:max-w-md sm:rounded-[18px] sm:pb-5"
-    : "w-[calc(100%-2rem)] max-w-md rounded-[18px]";
+    ? "mt-auto mb-0 w-full max-w-none rounded-t-[22px] pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:m-auto sm:max-w-md sm:rounded-2xl sm:pb-5"
+    : "w-[calc(100%-2rem)] max-w-md rounded-2xl";
   return (
     <dialog ref={ref} aria-labelledby={titleId} onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}
-      className={`m-auto border border-line bg-surface p-5 text-text shadow-frame backdrop:bg-black/40 ${shape}`}>
+      className={`m-auto border border-line bg-surface p-6 text-text shadow-frame ${shape}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={titleId} className="font-display text-lg font-semibold">{title}</h2>
+          <h2 id={titleId} className="font-display text-[22px] font-extrabold">{title}</h2>
           {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
         </div>
         <button type="button" onClick={onClose} aria-label="Close"
@@ -390,7 +393,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div role="status" aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4 md:bottom-6 md:items-end md:px-6">
         {toasts.map((t) => (
-          <p key={t.id} className={`pointer-events-auto rounded-xl px-4 py-2.5 text-sm font-medium shadow-frame ${t.tone === "ok" ? "bg-accent text-accent-fg" : "bg-danger text-white"}`}>
+          <p key={t.id} className={`plare-toast pointer-events-auto flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold shadow-frame ${t.tone === "ok" ? "bg-accent text-accent-fg" : "bg-danger text-white"}`}>
+            <span aria-hidden className={`size-2 shrink-0 rounded-full ${t.tone === "ok" ? "bg-gold" : "bg-white"}`} />
             {t.text}
           </p>
         ))}
@@ -425,7 +429,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: {
         return (
           <button key={t.id} ref={(el) => { refs.current[i] = el; }} role="tab" id={`tab-${t.id}`} aria-controls={`panel-${t.id}`}
             aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => onChange(t.id)} onKeyDown={(e) => onKey(e, i)}
-            className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors duration-150 ${on ? "border-accent text-text" : "border-transparent text-muted hover:text-text"}`}>
+            className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors duration-150 ${on ? "border-gold font-semibold text-text" : "border-transparent text-muted hover:text-text"}`}>
             {t.label}
             {t.count !== undefined && <span className="rounded-full bg-raised px-1.5 text-xs tabular-nums text-muted">{t.count}</span>}
           </button>

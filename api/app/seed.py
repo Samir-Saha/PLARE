@@ -70,9 +70,10 @@ def demo_people(db: Session, org_id: str, role: Role | None = None) -> dict[str,
 
 
 def seed_demo() -> bool:
-    """Create the demo group once, then make sure its log is seeded. Returns False if the group already existed."""
+    """Create the demo group once, then make sure its log and coffee chats are seeded. Returns False if the group already existed."""
     created = _seed_core()
     seed_demo_log()
+    seed_demo_coffee()
     return created
 
 
@@ -112,14 +113,13 @@ def _seed_core() -> bool:
             db.add_all(AvailabilityRule(user_id=u.id, weekday=d, start_minute=s, end_minute=e) for d, s, e in rules)
 
         t = now()
+        # Due dates land on real Eastern clock times (11:59 AM, 9:00 PM, ...), not "now plus N days".
         specs = [
-            ("BP post: week 6", "BP Posts", "Take this week's photo in business professional with the in-app camera.", t + timedelta(days=2), "camera", "normal"),
-            ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", t + timedelta(days=5), "none", "normal"),
-            ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", t + timedelta(days=3), "any", "normal"),
-            ("Interview a brother", "General Requirements", "Coffee chat notes with one active brother.", t - timedelta(days=1), "text", "low"),
+            ("BP post: week 6", "BP Posts", "Take this week's photo in business professional with the in-app camera.", _on(2, 11, 59), "camera", "normal"),
+            ("Log 10 study hours", "Study Hours", "Hit 10 tracked study hours this week.", _on(5, 23, 59), "none", "normal"),
+            ("Capstone checkpoint write-up", "General Requirements", "One paragraph on what you built this week.", _on(3, 21, 0), "any", "normal"),
         ]
-        # The (i + n) % 5 rotation gives each pledge at most one revision request and at most one
-        # overdue task, spread across the class rather than piled on anyone.
+        # The (i + n) % 5 rotation gives each pledge at most one revision request, spread across the class.
         for n, (title, cat, desc, due, evidence, prio) in enumerate(specs):
             task = Task(org_id=org.id, title=title, category=cat, description=desc, due_at=due, evidence=evidence,
                         priority=prio, created_by=task_owner.id, estimate_minutes=30)
@@ -144,8 +144,36 @@ def _seed_core() -> bool:
                     sub.status, sub.feedback = "needs_revision", "Add a bit more detail and resubmit."
                     sub.reviewer_id, sub.reviewed_at = reviser.id, t - timedelta(hours=2)
                     a.status = TaskStatus.needs_revision
+        # One past-due task. Only two pledges missed it (those with the fewest other issues, ties by
+        # name); everyone else submitted before the 9:00 PM deadline.
+        interview_due = _on(-1, 21, 0)
+        interview = Task(org_id=org.id, title="Interview a brother", category="General Requirements",
+                         description="Coffee chat notes with one active brother.", due_at=interview_due, evidence="text",
+                         priority="low", created_by=task_owner.id, estimate_minutes=30)
+        db.add(interview)
+        db.flush()
+        revisions = {u.id: 0 for u in pledges}
+        for a in db.scalars(select(Assignment).where(Assignment.org_id == org.id, Assignment.status == TaskStatus.needs_revision.value)):
+            revisions[a.user_id] += 1
+        missed = {u.id for u in sorted(pledges, key=lambda u: (revisions[u.id], u.name))[:2]}
+        for i, u in enumerate(sorted(pledges, key=lambda u: u.name)):
+            a = Assignment(task_id=interview.id, org_id=org.id, user_id=u.id)
+            db.add(a)
+            db.flush()
+            if u.id in missed:
+                continue
+            sent_at = interview_due - timedelta(hours=2 + i % 20, minutes=7 * i % 60)
+            sub = Submission(assignment_id=a.id, org_id=org.id, user_id=u.id,
+                             text="Demo submission for the presentation.", created_at=sent_at)
+            db.add(sub)
+            if i % 2 == 0:
+                sub.status, sub.reviewer_id, sub.reviewed_at = "approved", approver.id, interview_due + timedelta(hours=1)
+                a.status, a.completed_at = TaskStatus.approved, sub.reviewed_at
+            else:
+                a.status = TaskStatus.submitted
+
         db.add(Task(org_id=org.id, title="Book a room for game night", category="Events", claimable=True,
-                    description="Open task: first to claim it owns it.", due_at=t + timedelta(days=4),
+                    description="Open task: first to claim it owns it.", due_at=_on(4, 21, 0),
                     created_by=task_owner.id, estimate_minutes=20))
 
         # GM messages: due 6:00 AM New York time. Today's code word is "lantern"; pledges can send today's.
@@ -182,24 +210,33 @@ def _seed_core() -> bool:
 # --- Accountability log demo entries -------------------------------------------------------
 
 # (kind, detail, days ago, hour, minute, manual). Details are mild and never name anyone.
+# The two overdue_task entries come from the automatic overdue sync, dated at the 9:00 PM deadline.
+# GM messages are due 6:00 AM and BP posts 11:59 AM, matching those features' real deadlines.
 LOG_SPECS = [
-    ("late_gm", "GM message sent 9:14 AM (due 9:00 AM).", 6, 9, 14, False),
-    ("wrong_code", "GM message used the previous day's code.", 5, 8, 52, False),
+    ("late_gm", "GM message sent 6:14 AM (due 6:00 AM).", 6, 6, 14, False),
+    ("wrong_code", "GM message used the previous day's code word.", 5, 5, 52, False),
     ("other", "Arrived a few minutes late to the pledge meeting.", 5, 19, 40, True),
     ("late_bp", "BP post went up 12:07 PM (due 11:59 AM).", 4, 12, 7, False),
     ("study_short", "9h 10m logged last week, short of the 10-hour goal.", 3, 0, 5, False),
     ("other", "Left study session early.", 3, 20, 15, True),
-    ("late_gm", "GM message sent 9:21 AM (due 9:00 AM).", 2, 9, 21, False),
+    ("late_bp", "BP post went up 12:22 PM (due 11:59 AM).", 2, 12, 22, False),
     ("other", "Forgot to RSVP for chapter.", 2, 21, 5, True),
-    ("late_bp", "BP post went up 12:15 PM (due 11:59 AM).", 1, 12, 15, False),
-    ("study_short", "9h 25m logged last week, short of the 10-hour goal.", 3, 0, 5, False),
+    ("wrong_code", "GM message code word was misspelled.", 1, 5, 47, False),
+    ("late_gm", "GM message sent 6:09 AM (due 6:00 AM).", 0, 6, 9, False),
 ]
 MAX_LOG_PER_PLEDGE = 2
 
 
-def _at(days_ago: int, hh: int, mm: int) -> datetime:
-    day = now().astimezone(ET).date() - timedelta(days=days_ago)
+def _on(days_ahead: int, hh: int, mm: int) -> datetime:
+    """A real Eastern clock time N days from today (negative for the past)."""
+    day = now().astimezone(ET).date() + timedelta(days=days_ahead)
     return datetime.combine(day, time(hh, mm), tzinfo=ET)
+
+
+def _at(days_ago: int, hh: int, mm: int) -> datetime:
+    """A past Eastern clock time; if 'today at hh:mm' hasn't happened yet, use the day before."""
+    at = _on(-days_ago, hh, mm)
+    return at if at <= now() else at - timedelta(days=1)
 
 
 def seed_demo_log() -> int:
@@ -282,6 +319,45 @@ def reset_demo() -> None:
             if conds:
                 db.execute(table.delete().where(or_(*conds)))
         db.commit()
+
+
+
+# --- Coffee chat demo brothers ---------------------------------------------------------
+
+DEMO_BROTHERS = [
+    ("Marcus", "Delgado", -2), ("Ethan", "Whitfield", -1), ("Jordan", "Okafor", 1), ("Liam", "Castellano", 2),
+    ("Nathan", "Brooks", 3), ("Isaac", "Moreau", 4), ("Caleb", "Nguyen", 5), ("Owen", "Sterling", 7),
+    ("Julian", "Ashford", 8), ("Adrian", "Kowalski", 10), ("Miles", "Bennett", 12), ("Theo", "Ramirez", 14),
+]
+
+
+def seed_demo_coffee() -> int:
+    """Add fictional brothers to the demo group's coffee chat list, once. Returns how many were added."""
+    from .models import CoffeeChatBrother, CoffeeChatCompletion
+
+    with SessionLocal() as db:
+        org = demo_org(db)
+        if org is None or db.scalar(select(CoffeeChatBrother).where(CoffeeChatBrother.org_id == org.id).limit(1)):
+            return 0
+        lead = db.scalar(select(Membership).where(Membership.org_id == org.id, Membership.role != Role.member.value)
+                         .order_by(Membership.created_at, Membership.id))
+        pledges = db.scalars(select(Membership).where(Membership.org_id == org.id, Membership.role == Role.member.value)
+                             .order_by(Membership.created_at, Membership.id)).all()
+        today = now().astimezone(ET).date()
+        brothers = []
+        for first, last, days in DEMO_BROTHERS:
+            due = datetime.combine(today + timedelta(days=days), time(23, 59), tzinfo=ET)  # 11:59 PM Eastern
+            b = CoffeeChatBrother(org_id=org.id, first_name=first, last_name=last, due_at=due, created_by=lead.user_id)
+            db.add(b)
+            brothers.append(b)
+        db.flush()
+        # Each pledge has already finished a different number of chats, earliest deadlines first.
+        for i, m in enumerate(pledges):
+            for n, b in enumerate(brothers[: (i * 7) % 6 + 1]):
+                db.add(CoffeeChatCompletion(brother_id=b.id, org_id=org.id, user_id=m.user_id,
+                                            completed_at=now() - timedelta(days=3 - n % 3, hours=i % 5)))
+        db.commit()
+        return len(brothers)
 
 
 if __name__ == "__main__":
