@@ -521,3 +521,33 @@ class BpCheckin(Base):
     due_at: Mapped[datetime] = mapped_column(UTCDateTime)  # deadline when it was taken
     submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
     user: Mapped[User] = relationship()
+
+
+class CalendarEvent(Base):
+    """A shared calendar event. Confirmed (green) once `required_rsvps` invitees say yes."""
+
+    __tablename__ = "calendar_events"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    start_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    end_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    required_rsvps: Mapped[int] = mapped_column(Integer, default=1)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    guests: Mapped[list[CalendarEventGuest]] = relationship(
+        back_populates="event", cascade="all, delete-orphan", lazy="selectin")
+
+
+class CalendarEventGuest(Base):
+    """One invitee's answer: invited (no answer yet), yes, no, or maybe."""
+
+    __tablename__ = "calendar_event_guests"
+    __table_args__ = (UniqueConstraint("event_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    event_id: Mapped[str] = mapped_column(ForeignKey("calendar_events.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    response: Mapped[str] = mapped_column(String(16), default="invited")
+    event: Mapped[CalendarEvent] = relationship(back_populates="guests")
