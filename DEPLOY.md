@@ -27,7 +27,7 @@ Keep this string private. It gives full access to the database.
 4. Click **Apply**. The first build takes a few minutes.
 5. Open `https://<your-render-url>/health`. You should see `{"ok":true,...}`.
 
-The app creates its database tables on first start and, with `DEMO_AUTH=true`, adds the fictional demo group.
+The app creates its database tables on first start and, with `DEMO_AUTH=true`, adds the demo group (real names, made-up records). Run `python -m app.seed --reset` to reseed it.
 
 ## 3. Deploy the website (Vercel)
 

@@ -64,7 +64,13 @@ Open http://localhost:3000 and choose **Enter as a pledge**, **Enter as a brothe
 5. Open Schedule to see the ranked meeting times, then propose a meeting.
 6. Open Study to start the timer and see the study plan and group study windows.
 
-The demo group has 15 pledges, 2 brothers, and 1 admin. All of them are fictional, and the app labels the group as demo data.
+The demo group, "KTP Epsilon Class", uses the real pledge class and brothers' names and positions (names and roles only). Every record in it is made up for the presentation, and the app labels it as demo data. The 15 pledges are members; all 12 brothers and NMEs are admins. "Enter as a pledge" signs in as Mohammad Butt, "Enter as a brother / PM" as Abirami, and "Enter as an admin" as Arnav.
+
+To wipe the demo group and its demo users and reseed it (for example after changing `app/seed.py`):
+
+```bash
+cd api && python -m app.seed --reset
+```
 
 ## Google sign-in and Calendar
 
@@ -102,7 +108,7 @@ api/
   app/routers/     orgs, tasks, schedule, study
   app/models.py    database schema
   app/auth.py      JWT verification and membership checks
-  app/seed.py      fictional demo data
+  app/seed.py      demo data (real names, made-up records); --reset reseeds
   tests/
 web/
   src/app/         pages: sign-in, tasks, schedule, study, review, group, join

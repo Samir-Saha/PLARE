@@ -232,12 +232,14 @@ def test_demo_seed_is_usable(client):
 
     assert seed_demo() is True and seed_demo() is False
     users = client.get("/demo/users").json()
-    assert len(users) == 18
-    h = as_user("avery.lin@plare.demo")
+    assert len(users) == 27
+    assert {u["name"] for u in users if u["role"] == "member"} >= {"Mohammad Butt", "Kishor GS"}
+    assert not [u for u in users if u["role"] == "lead"]  # every brother is an admin in the demo group
+    h = as_user("mohammad.butt@plare.demo")
     org = client.get("/me", headers=h).json()["orgs"][0]["id"]
     assert len(client.get(f"/orgs/{org}/tasks/mine", headers=h).json()) == 4
     # GM messages: yesterday's inbox has flags; today's code word is set and pledges can send.
-    lead = as_user("rowan.ellis@plare.demo")
+    lead = as_user("abirami@plare.demo")
     today = client.get(f"/orgs/{org}/gm/inbox", headers=lead).json()
     assert today["code"] == "lantern"
     yesterday = (date.fromisoformat(today["day"]) - timedelta(days=1)).isoformat()
@@ -245,7 +247,47 @@ def test_demo_seed_is_usable(client):
     assert past["counts"]["flagged"] > 0 and past["counts"]["missing"] > 0 and past["counts"]["on_time"] > 0
     assert client.post(f"/orgs/{org}/gm", json={"goal": "Study", "code": "lantern"}, headers=h).status_code == 201
     best = client.get(f"/orgs/{org}/best-times?duration=90&days=7", headers=h).json()
-    assert best["options"][0]["count"] == 18
+    assert best["options"][0]["count"] == 27
+
+
+def test_member_titles_are_optional_and_scoped_to_the_group(client, world):
+    from app.models import MemberTitle
+
+    with SessionLocal() as db:
+        db.add(MemberTitle(org_id=world["org_a"], user_id=world["admin"], title="NME"))
+        db.commit()
+    rows = client.get(f"/orgs/{world['org_a']}/members", headers=as_user("m1@t.demo")).json()
+    titles = {r["name"]: r["title"] for r in rows}
+    assert titles["admin"] == "NME" and titles["m1"] is None
+    me = client.get("/me", headers=as_user("admin@t.demo")).json()
+    assert me["orgs"][0]["title"] == "NME"
+    assert client.get("/me", headers=as_user("m1@t.demo")).json()["orgs"][0]["title"] is None
+
+
+def test_demo_seed_is_fair_and_resettable(client):
+    from collections import Counter
+
+    from app.db import SessionLocal
+    from app.logbook import sync_overdue
+    from app.models import LogEntry, MemberTitle, Organization
+    from app.seed import reset_demo, seed_demo
+
+    seed_demo()
+    with SessionLocal() as db:
+        org = db.query(Organization).filter_by(is_demo=True).one()
+        assert org.name == "KTP Epsilon Class"
+        sync_overdue(db, org.id)
+        db.commit()
+        per_person = Counter(e.user_id for e in db.query(LogEntry).filter_by(org_id=org.id))
+        assert max(per_person.values()) <= 2
+        assert db.query(MemberTitle).filter_by(org_id=org.id).count() == 12
+    assert client.get("/me", headers=as_user("arnav@plare.demo")).json()["orgs"][0]["title"] == "NME"
+
+    reset_demo()
+    with SessionLocal() as db:
+        assert db.query(Organization).filter_by(is_demo=True).count() == 0
+        assert db.query(LogEntry).count() == 0
+    assert seed_demo() is True
 
 
 def test_invite_list_and_revoke(client, world):

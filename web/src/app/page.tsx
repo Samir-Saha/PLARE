@@ -7,6 +7,9 @@ import { Badge, Button, Card, Notice, ThemeToggle, Wordmark } from "@/components
 
 type DemoUser = { email: string; name: string; role: string };
 
+// Demo buttons pick people by name (falling back to the first person with the role). Mirrors DEMO_LOGINS in api/app/seed.py.
+const DEMO_LOGINS = { pledge: ["Mohammad Butt", "member"], brother: ["Abirami", "lead"], admin: ["Arnav", "admin"] } as const;
+
 export default function Home() {
   const router = useRouter();
   const [demo, setDemo] = useState<DemoUser[]>([]);
@@ -18,7 +21,10 @@ export default function Home() {
     fetch(`${API_URL}/demo/users`).then((r) => r.json()).then(setDemo, () => setServerDown(true));
   }, [router]);
 
-  const pick = (role: string) => demo.find((u) => u.role === role);
+  const pick = (who: keyof typeof DEMO_LOGINS) => {
+    const [name, role] = DEMO_LOGINS[who];
+    return demo.find((u) => u.name === name) ?? demo.find((u) => u.role === role);
+  };
   const enter = (u?: DemoUser) => {
     if (!u) return;
     demoUser.set(u.email);
@@ -54,9 +60,9 @@ export default function Home() {
           )}
           {demo.length > 0 && (
             <div className="space-y-2 border-t border-line pt-3">
-              <p className="text-sm text-muted">Or explore the demo group. Its people and data are fictional.</p>
-              <Button className="w-full" onClick={() => enter(pick("member"))}>Enter as a pledge</Button>
-              <Button className="w-full" onClick={() => enter(pick("lead"))}>Enter as a brother / PM</Button>
+              <p className="text-sm text-muted">Or explore the demo group. Real names, but every record here is made up for the presentation.</p>
+              <Button className="w-full" onClick={() => enter(pick("pledge"))}>Enter as a pledge</Button>
+              <Button className="w-full" onClick={() => enter(pick("brother"))}>Enter as a brother / PM</Button>
               <Button className="w-full" onClick={() => enter(pick("admin"))}>Enter as an admin</Button>
             </div>
           )}

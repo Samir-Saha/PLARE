@@ -8,7 +8,7 @@ import {
   Avatar, Badge, Button, Dialog, Empty, Notice, Page, PageHeader, Skeleton, Tabs, field, tabPanelProps, useLoad, useToast,
 } from "@/components/ui";
 
-type Member = { user_id: string; name: string; role: "admin" | "lead" | "member"; joined_at?: string };
+type Member = { user_id: string; name: string; role: "admin" | "lead" | "member"; joined_at?: string; title?: string | null };
 type Invite = { code: string; role: Member["role"]; expires_at: string | null; created_at: string; created_by: string };
 type TabId = "members" | "invites" | "settings";
 
@@ -150,7 +150,11 @@ function MembersTab({ org, meId, tz, members, onChanged }: {
                 <Avatar name={m.name} className="size-8 text-[11px]" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{m.name}{m.user_id === meId && <span className="font-normal text-muted"> (you)</span>}</p>
-                  {m.joined_at && <p className="text-xs text-muted">Joined {fmtShortDay(m.joined_at, tz)}</p>}
+                  {(m.title || m.joined_at) && (
+                    <p className="truncate text-xs text-muted">
+                      {m.title}{m.title && m.joined_at ? " · " : ""}{m.joined_at && `Joined ${fmtShortDay(m.joined_at, tz)}`}
+                    </p>
+                  )}
                 </div>
                 <Badge tone={m.role === "member" ? "neutral" : "accent"}>{label(m.role)}</Badge>
                 {canManage && (
