@@ -292,3 +292,28 @@ class MemberTitle(Base):
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(80))
+
+
+class CoffeeChatBrother(Base):
+    """A brother each pledge needs a coffee chat with, by a deadline. Leads manage the list."""
+
+    __tablename__ = "coffee_chat_brothers"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    first_name: Mapped[str] = mapped_column(String(60))
+    last_name: Mapped[str] = mapped_column(String(60))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class CoffeeChatCompletion(Base):
+    """A pledge marked their coffee chat with one brother as done."""
+
+    __tablename__ = "coffee_chat_completions"
+    __table_args__ = (UniqueConstraint("brother_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    brother_id: Mapped[str] = mapped_column(ForeignKey("coffee_chat_brothers.id", ondelete="CASCADE"), index=True)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    completed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)

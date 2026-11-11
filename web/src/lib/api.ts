@@ -83,3 +83,7 @@ export type GmInbox = GmSettings & {
 export type AppNotification = { id: string; category: string; title: string; body: string; link: string; read: boolean; created_at: string };
 export type LogEntry = { id: string; user_id: string; user_name: string; kind: string; label: string; detail: string; automatic: boolean; created_by: string | null; created_by_name: string | null; created_at: string };
 export type LogSummary = { today: number; total: number; members: { user_id: string; name: string; count: number }[] };
+export type CoffeeChat = {
+  id: string; first_name: string; last_name: string; due_at: string; done: boolean; completed_at: string | null; overdue: boolean;
+  done_count?: number; member_count?: number; // leads only
+};

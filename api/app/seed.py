@@ -70,9 +70,10 @@ def demo_people(db: Session, org_id: str, role: Role | None = None) -> dict[str,
 
 
 def seed_demo() -> bool:
-    """Create the demo group once, then make sure its log is seeded. Returns False if the group already existed."""
+    """Create the demo group once, then make sure its log and coffee chats are seeded. Returns False if the group already existed."""
     created = _seed_core()
     seed_demo_log()
+    seed_demo_coffee()
     return created
 
 
@@ -282,6 +283,45 @@ def reset_demo() -> None:
             if conds:
                 db.execute(table.delete().where(or_(*conds)))
         db.commit()
+
+
+
+# --- Coffee chat demo brothers ---------------------------------------------------------
+
+DEMO_BROTHERS = [
+    ("Marcus", "Delgado", -2), ("Ethan", "Whitfield", -1), ("Jordan", "Okafor", 1), ("Liam", "Castellano", 2),
+    ("Nathan", "Brooks", 3), ("Isaac", "Moreau", 4), ("Caleb", "Nguyen", 5), ("Owen", "Sterling", 7),
+    ("Julian", "Ashford", 8), ("Adrian", "Kowalski", 10), ("Miles", "Bennett", 12), ("Theo", "Ramirez", 14),
+]
+
+
+def seed_demo_coffee() -> int:
+    """Add fictional brothers to the demo group's coffee chat list, once. Returns how many were added."""
+    from .models import CoffeeChatBrother, CoffeeChatCompletion
+
+    with SessionLocal() as db:
+        org = demo_org(db)
+        if org is None or db.scalar(select(CoffeeChatBrother).where(CoffeeChatBrother.org_id == org.id).limit(1)):
+            return 0
+        lead = db.scalar(select(Membership).where(Membership.org_id == org.id, Membership.role != Role.member.value)
+                         .order_by(Membership.created_at, Membership.id))
+        pledges = db.scalars(select(Membership).where(Membership.org_id == org.id, Membership.role == Role.member.value)
+                             .order_by(Membership.created_at, Membership.id)).all()
+        today = now().astimezone(ET).date()
+        brothers = []
+        for first, last, days in DEMO_BROTHERS:
+            due = datetime.combine(today + timedelta(days=days), time(23, 59), tzinfo=ET)  # 11:59 PM Eastern
+            b = CoffeeChatBrother(org_id=org.id, first_name=first, last_name=last, due_at=due, created_by=lead.user_id)
+            db.add(b)
+            brothers.append(b)
+        db.flush()
+        # Each pledge has already finished a different number of chats, earliest deadlines first.
+        for i, m in enumerate(pledges):
+            for n, b in enumerate(brothers[: (i * 7) % 6 + 1]):
+                db.add(CoffeeChatCompletion(brother_id=b.id, org_id=org.id, user_id=m.user_id,
+                                            completed_at=now() - timedelta(days=3 - n % 3, hours=i % 5)))
+        db.commit()
+        return len(brothers)
 
 
 if __name__ == "__main__":

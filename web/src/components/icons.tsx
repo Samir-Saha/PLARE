@@ -26,3 +26,4 @@ export const IconPlus = (p: P) => <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg
 export const IconGrid = (p: P) => <Svg {...p}><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></Svg>;
 export const IconHome = (p: P) => <Svg {...p}><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" /></Svg>;
 export const IconLog = (p: P) => <Svg {...p}><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4" /></Svg>;
+export const IconCoffee = (p: P) => <Svg {...p}><path d="M4.5 9h12v5.5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" /><path d="M16.5 10.5h1.25a2.75 2.75 0 0 1 0 5.5H16M8.5 3.5v2.5M12.5 3.5v2.5" /></Svg>;
