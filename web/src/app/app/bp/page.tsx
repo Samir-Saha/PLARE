@@ -1,11 +1,9 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, fileUrl, type BpCheckin, type BpGrid, type BpMine, type BpTile } from "@/lib/api";
 import { fmtDate, fmtMinute, fmtTime, minutesBetween } from "@/lib/format";
 import { useApp } from "@/components/shell";
 import { Badge, Button, Card, Empty, ListRow, Notice, Page, PageHeader, SectionHeader, Skeleton, field, useLoad } from "@/components/ui";
-import { RandomLeadBp } from "@/components/bp/lead-bp";
-import { RandomMemberBp } from "@/components/bp/member-bp";
 
 /** BP check-in: leads get the day's grid; members take today's photo. */
 export default function Bp() {
@@ -99,7 +97,6 @@ function MemberBp() {
           </ul>
         </section>
       )}
-      <RandomSection><RandomMemberBp /></RandomSection>
     </Page>
   );
 }
@@ -134,7 +131,6 @@ function LeadBp() {
             )}
         </>
       )}
-      <RandomSection><RandomLeadBp /></RandomSection>
     </Page>
   );
 }
@@ -176,15 +172,4 @@ function Status({ s }: { s: BpCheckin["status"] | BpTile["status"] }) {
   if (s === "late") return <Badge tone="danger">Late</Badge>;
   if (s === "missing") return <Badge tone="danger">Missing</Badge>;
   return <Badge>Waiting</Badge>;
-}
-
-/** Random check-ins, under the daily BP: off until brothers turn them on. */
-function RandomSection({ children }: { children: ReactNode }) {
-  return (
-    <section className="mt-12 border-t border-line pt-8">
-      <h2 className="mb-1 font-display text-xl font-semibold tracking-[-0.01em]">Random check-ins</h2>
-      <p className="mb-6 text-sm text-muted">Separate from the daily BP: a photo at a random time, never during times someone can&apos;t take one.</p>
-      {children}
-    </section>
-  );
 }
