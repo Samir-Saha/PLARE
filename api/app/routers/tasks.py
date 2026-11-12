@@ -1,17 +1,16 @@
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import ai_check
+from .. import ai_check, storage
 from ..auth import LEADS, audit, current_user, membership, notify
 from ..config import get_settings
 from ..db import get_db, now
 from ..models import Assignment, CaptureToken, Membership, Role, Submission, SubmissionCheck, Task, TaskStatus, User, uid
+from ..task_automation import clear_task_reminders
 
 router = APIRouter()
 
@@ -223,11 +222,8 @@ async def submit(
             raise HTTPException(415, "Only JPEG, PNG, or PDF files are accepted")
         if need in ("photo", "camera") and not file_type.startswith("image/"):
             raise HTTPException(415, "This task needs a photo (JPEG or PNG)")
-        # Server-generated name; the client's filename is never used on disk.
-        file_path = f"{a.org_id}/{uid()}{SIGNATURES[file_type][1]}"
-        target = Path(settings.upload_dir) / file_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+        # Server-generated name; the client's filename is never used.
+        file_path = storage.put(f"{a.org_id}/{uid()}{SIGNATURES[file_type][1]}", data)
 
     sub = Submission(assignment_id=a.id, org_id=a.org_id, user_id=user.id, text=text, file_path=file_path, file_type=file_type)
     db.add(sub)
@@ -238,6 +234,7 @@ async def submit(
     status = ai_check.initial_status(ai_check.checkable_text(text, data, file_type))
     db.add(SubmissionCheck(submission_id=sub.id, captured_at=t if token is not None else None, ai_status=status))
     a.status = TaskStatus.submitted
+    clear_task_reminders(db, a.id)
     for m in db.scalars(select(Membership).where(Membership.org_id == a.org_id, Membership.role.in_(LEADS))):
         notify(db, m.user_id, a.org_id, "review", f"{user.name} submitted {a.task.title}", link="/app/review")
     db.commit()
@@ -275,10 +272,7 @@ def submission_file(submission_id: str, user: User = Depends(current_user), db: 
     m = membership(db, user, s.org_id)
     if s.user_id != user.id and Role(m.role) not in LEADS:
         raise HTTPException(404, "File not found")
-    path = Path(get_settings().upload_dir) / s.file_path
-    if not path.is_file():
-        raise HTTPException(404, "File not found")
-    return FileResponse(path, media_type=s.file_type, headers={"Cache-Control": "private, no-store"})
+    return storage.file_response(s.file_path, s.file_type)
 
 
 @router.post("/submissions/{submission_id}/review")
@@ -321,8 +315,10 @@ def rerun_ai_check(submission_id: str, background: BackgroundTasks, user: User =
         db.add(check)
     data = None
     if s.file_path:
-        path = Path(get_settings().upload_dir) / s.file_path
-        data = path.read_bytes() if path.is_file() else None
+        try:
+            data = storage.read(s.file_path)
+        except HTTPException:
+            data = None
     status = ai_check.initial_status(ai_check.checkable_text(s.text, data, s.file_type))
     if status == "not_configured":
         raise HTTPException(409, "The AI check isn't set up. Add HF_TOKEN on the server, then try again.")

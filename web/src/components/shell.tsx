@@ -7,11 +7,24 @@ import { Avatar, Button, Notice, Skeleton, ThemeToggle, ToastProvider, Wordmark,
 import { AccountSheet, CreateGroupDialog, GroupSwitcher, MobileTopBar } from "./workspace";
 import { IconBell, IconBook, IconCalendar, IconCamera, IconCheck, IconClose, IconCoffee, IconGrid, IconHome, IconLog, IconLogout, IconNote, IconSun, IconUsers } from "./icons";
 import type { ExcuseSummary, LogSummary } from "@/lib/api";
+import { AlarmBanner } from "./alarms";
 
 type NavItem = { href: string; label: string; short?: string; icon: (p: SVGProps<SVGSVGElement>) => ReactNode; count?: number; alert?: boolean; countLabel?: string };
 
 function CountPill({ n, alert, label }: { n: number; alert?: boolean; label?: string }) {
   return <span aria-label={label} title={label} className={`ml-auto min-w-6 rounded-full px-2 py-px text-center text-[12px] font-bold tabular-nums ${alert ? "bg-danger text-white" : "bg-gold text-gold-fg"}`}>{n}</span>;
+}
+
+function NotificationsLink({ pathname }: { pathname: string }) {
+  const unread = useLoad(() => api<{ count: number }>("/notifications/unread-count"), []);
+  const n = unread.data?.count ?? 0;
+  return (
+    <Link href="/app/notifications" aria-current={pathname === "/app/notifications" ? "page" : undefined}
+      className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-nav-muted transition-colors duration-150 hover:bg-nav-hover hover:text-nav-text">
+      <IconBell width={17} height={17} />Notifications
+      {n > 0 && <CountPill n={n} alert label={`${n} unread`} />}
+    </Link>
+  );
 }
 
 type Ctx = { me: Me; org: Org; isLead: boolean; refresh: () => Promise<void>; selectOrg: (id: string) => void };
@@ -176,9 +189,10 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
               <p className="truncate text-[12px] font-medium text-nav-muted">{role}{me.is_demo ? ", demo" : ""}</p>
             </div>
           </div>
+          <NotificationsLink pathname={pathname} />
           <Link href="/app/settings" aria-current={pathname === "/app/settings" ? "page" : undefined}
             className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-nav-muted transition-colors duration-150 hover:bg-nav-hover hover:text-nav-text">
-            <IconBell width={17} height={17} />Notifications
+            Settings
           </Link>
           <ThemeToggle className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium! text-nav-muted! hover:bg-nav-hover! hover:text-nav-text!" />
           <Button variant="ghost" className="min-h-9! w-full justify-start! px-2.5! text-[13px] font-medium! text-nav-muted! hover:bg-nav-hover! hover:text-nav-text!" onClick={onSignOut}>
@@ -195,6 +209,7 @@ function Frame({ me, org, selectOrg, refresh, onSignOut, children }: { me: Me; o
           </p>
         )}
         <GmReminderBanner />
+        <AlarmBanner />
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
       </div>
 

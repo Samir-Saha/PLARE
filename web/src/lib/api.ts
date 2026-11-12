@@ -121,3 +121,17 @@ export type BpCheckin = { id: string; user_id: string; user_name: string; day: s
 export type BpMine = BpSettings & { today: BpCheckin | null; history: BpCheckin[] };
 export type BpTile = { user_id: string; name: string; status: "on_time" | "late" | "missing" | "pending"; checkin: BpCheckin | null };
 export type BpGrid = BpSettings & { today: string; past_due: boolean; tiles: BpTile[]; counts: { on_time: number; late: number; missing: number; pending: number; members: number; flagged: number } };
+
+export type TaskTemplate = {
+  id: string; title: string; description: string; category: string; priority: string;
+  estimate_minutes: number | null; evidence: Evidence; assign: string;
+  frequency: "daily" | "weekly"; timezone: string;
+  first_due_at: string; next_run_at: string; ends_at: string | null;
+  status: "active" | "paused" | "ended";
+};
+
+export type DeadlineAlarm = {
+  id: string; assignment_id: string; status: "armed" | "ringing" | "stopped" | "dismissed";
+  prompt: string; operand_a: number | null; operand_b: number | null;
+  task_title: string; due_at: string | null; link: string;
+};

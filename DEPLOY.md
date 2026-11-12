@@ -62,7 +62,7 @@ The app creates its database tables on first start and, with `DEMO_AUTH=true`, a
 ## Before a demo
 
 - **Wake the API.** Render's free tier sleeps after 15 minutes without traffic, and the first request then takes up to a minute. Open `https://<your-render-url>/health` a few minutes before presenting.
-- **Expect lost uploads.** Uploaded photos are stored on Render's temporary disk and are lost when it restarts. That's fine for a demo. For real use, move uploads to Supabase Storage.
+- **Keep uploads.** Uploaded photos default to Render's temporary disk and are lost when it restarts. For real use, create a **private** bucket named `plare-uploads` in Supabase Storage (no public access), then set `SUPABASE_SERVICE_ROLE_KEY` on Render to the project's service-role key. The API never hands out a public URL; files are fetched only after an authenticated, authorized request. Optionally set `SUPABASE_STORAGE_BUCKET` if you used a different bucket name.
 
 ## Troubleshooting
 

@@ -25,8 +25,13 @@ services:
       - key: DEMO_AUTH
         value: "true"
       # Render's free disk is temporary: uploads disappear when the service restarts.
+      # Set SUPABASE_SERVICE_ROLE_KEY (and optionally SUPABASE_STORAGE_BUCKET) to keep files in a private bucket.
       - key: UPLOAD_DIR
         value: /tmp/plare-uploads
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: plare-uploads
       # Free Hugging Face token for the AI-writing check. Leave unset and reviewers see "AI check not set up".
       - key: HF_TOKEN
         sync: false

@@ -248,13 +248,23 @@ def _admin_count(db: Session, org_id: str) -> int:
 @router.get("/notifications")
 def notifications(user: User = Depends(current_user), db: Session = Depends(get_db)):
     rows = db.scalars(
-        select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc()).limit(50)
+        select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc()).limit(100)
     ).all()
     return [
         {"id": n.id, "category": n.category, "title": n.title, "body": n.body, "link": n.link,
          "read": n.read_at is not None, "created_at": n.created_at}
         for n in rows
     ]
+
+
+@router.get("/notifications/unread-count")
+def unread_count(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    count = db.scalar(
+        select(func.count()).select_from(Notification).where(
+            Notification.user_id == user.id, Notification.read_at.is_(None),
+        )
+    )
+    return {"count": int(count or 0)}
 
 
 class ReadIn(BaseModel):

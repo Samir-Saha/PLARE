@@ -7,16 +7,15 @@ and the group's leads can open it.
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from zoneinfo import available_timezones
 
+from .. import storage
 from ..auth import LEADS, audit, current_user, membership, notify
 from ..config import get_settings
 from ..db import get_db, now
@@ -150,23 +149,22 @@ async def check_in(
     file_type = next((mime for mime, (sig, _) in PHOTO_SIGNATURES.items() if data.startswith(sig)), None)
     if file_type is None:
         raise HTTPException(415, "Take the photo again. Only JPEG or PNG photos are accepted.")
-    file_path = f"{org_id}/bp/{uid()}{PHOTO_SIGNATURES[file_type][1]}"
-    target = Path(settings.upload_dir) / file_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(data)
+    file_path = storage.put(f"{org_id}/bp/{uid()}{PHOTO_SIGNATURES[file_type][1]}", data)
 
     due = rules.due_at(day, s.due_minute, s.timezone)
     c = BpCheckin(org_id=org_id, user_id=user.id, day=day.isoformat(), caption=caption.strip(),
                   file_path=file_path, file_type=file_type, due_at=due, submitted_at=at)
     db.add(c)
-    if at > due:  # tell the leads right away instead of waiting for them to open the grid
-        for lead in db.scalars(select(Membership).where(Membership.org_id == org_id, Membership.role.in_(LEADS))):
-            notify(db, lead.user_id, org_id, "bp", f"{user.name}'s BP came in late", link="/app/bp")
+    # Tell leads about every post, and flag late ones in the message.
+    late = at > due
+    title = f"{user.name}'s BP came in late" if late else f"{user.name} posted today's BP"
+    for lead in db.scalars(select(Membership).where(Membership.org_id == org_id, Membership.role.in_(LEADS))):
+        notify(db, lead.user_id, org_id, "bp", title, link="/app/bp")
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        target.unlink(missing_ok=True)
+        storage.remove(file_path)
         raise HTTPException(409, already)  # a double-tap that raced the check above
     db.refresh(c)
     return _checkin(c)
@@ -214,7 +212,4 @@ def photo(checkin_id: str, user: User = Depends(current_user), db: Session = Dep
     m = membership(db, user, c.org_id)
     if c.user_id != user.id and Role(m.role) not in LEADS:
         raise HTTPException(404, "Photo not found")
-    path = Path(get_settings().upload_dir) / c.file_path
-    if not path.is_file():
-        raise HTTPException(404, "Photo not found")
-    return FileResponse(path, media_type=c.file_type, headers={"Cache-Control": "private, no-store"})
+    return storage.file_response(c.file_path, c.file_type)

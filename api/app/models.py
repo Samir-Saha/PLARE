@@ -551,3 +551,86 @@ class CalendarEventGuest(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     response: Mapped[str] = mapped_column(String(16), default="invited")
     event: Mapped[CalendarEvent] = relationship(back_populates="guests")
+
+
+class TaskReminder(Base):
+    """A durable claim per assignment, deadline and reminder window."""
+
+    __tablename__ = "task_reminders"
+    __table_args__ = (UniqueConstraint("assignment_id", "due_at", "stage"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
+    notification_id: Mapped[str | None] = mapped_column(ForeignKey("notifications.id", ondelete="SET NULL"), index=True)
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    stage: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class TaskTemplate(Base):
+    """Recurring task definition. Existing Task/Assignment rows remain ordinary history."""
+
+    __tablename__ = "task_templates"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(48), default="General")
+    priority: Mapped[str] = mapped_column(String(16), default="normal")
+    estimate_minutes: Mapped[int | None] = mapped_column(Integer)
+    evidence: Mapped[str] = mapped_column(String(16), default="any")
+    assign: Mapped[str] = mapped_column(String(16), default="all_members")
+    frequency: Mapped[str] = mapped_column(String(8))
+    timezone: Mapped[str] = mapped_column(String(64))
+    first_due_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    next_run_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    status: Mapped[str] = mapped_column(String(8), default="active")  # active | paused | ended
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class TaskTemplateAssignee(Base):
+    __tablename__ = "task_template_assignees"
+    template_id: Mapped[str] = mapped_column(ForeignKey("task_templates.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+
+
+class TaskOccurrence(Base):
+    __tablename__ = "task_occurrences"
+    __table_args__ = (UniqueConstraint("template_id", "due_at"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    template_id: Mapped[str] = mapped_column(ForeignKey("task_templates.id", ondelete="CASCADE"), index=True)
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class BpReminder(Base):
+    """One row per BP reminder sent, so a person never gets the same day's reminder twice."""
+
+    __tablename__ = "bp_reminders"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    day: Mapped[str] = mapped_column(String(10))
+    sent_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+
+
+class DeadlineAlarm(Base):
+    """Opt-in deadline alarm. The math answer lives only on the server. Always dismissible."""
+
+    __tablename__ = "deadline_alarms"
+    __table_args__ = (UniqueConstraint("assignment_id", "user_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    # armed (waiting for the deadline) | ringing | stopped (solved) | dismissed
+    status: Mapped[str] = mapped_column(String(16), default="armed")
+    operand_a: Mapped[int] = mapped_column(Integer, default=0)
+    operand_b: Mapped[int] = mapped_column(Integer, default=0)
+    last_pushed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    stopped_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=now)
+    assignment: Mapped[Assignment] = relationship()
