@@ -1,13 +1,12 @@
 """Excused absence routes: pledges request, brothers approve or deny."""
 from datetime import date
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import storage
 from ..auth import LEADS, audit, current_user, membership, notify
 from ..config import get_settings
 from ..db import get_db, now
@@ -105,11 +104,8 @@ async def request_excuse(
         file_type = next((mime for mime, (sig, _) in SIGNATURES.items() if data.startswith(sig)), None)
         if file_type is None:
             raise HTTPException(415, "Only JPEG, PNG, or PDF files are accepted")
-        # Server-generated name; the client's filename is never used on disk.
-        file_path = f"{org_id}/{uid()}{SIGNATURES[file_type][1]}"
-        target = Path(settings.upload_dir) / file_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+        # Server-generated name; the client's filename is never used.
+        file_path = storage.put(f"{org_id}/{uid()}{SIGNATURES[file_type][1]}", data)
 
     # Late is decided by the server clock: the request came in after the first day it covers.
     today = now().astimezone(LOCAL_TZ).date()
@@ -185,7 +181,7 @@ def withdraw_excuse(excuse_id: str, user: User = Depends(current_user), db: Sess
     if e.status != "pending":
         raise HTTPException(409, "This request was already reviewed, so it can't be withdrawn")
     if e.file_path:
-        (Path(get_settings().upload_dir) / e.file_path).unlink(missing_ok=True)
+        storage.remove(e.file_path)
     db.delete(e)
     db.commit()
     return Response(status_code=204)
@@ -197,7 +193,4 @@ def excuse_file(excuse_id: str, user: User = Depends(current_user), db: Session 
     e, m = _load(db, user, excuse_id)
     if not e.file_path or (e.user_id != user.id and Role(m.role) not in LEADS):
         raise HTTPException(404, "File not found")
-    path = Path(get_settings().upload_dir) / e.file_path
-    if not path.is_file():
-        raise HTTPException(404, "File not found")
-    return FileResponse(path, media_type=e.file_type, headers={"Cache-Control": "private, no-store"})
+    return storage.file_response(e.file_path, e.file_type)

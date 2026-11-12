@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { api, post, type Assignment } from "@/lib/api";
+import { useApp } from "@/components/shell";
+import { AlarmOptIn } from "@/components/alarms";
 import { fmtDue } from "@/lib/format";
 import { IconClose } from "@/components/icons";
 import { Button, Card, CheckButton, CheckMark, Empty, ListRow, Notice, Skeleton, field, useToast, type Bar } from "@/components/ui";
@@ -164,6 +166,8 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
           ) : task.status === "approved" ? <CheckMark label="Approved" /> : null}
         </div>
         {task.description && <p className={`mt-1.5 text-[14px] text-muted ${openForm ? "" : "line-clamp-1"}`}>{task.description}</p>}
+        <AlarmOptIn assignmentId={task.id} dueAt={task.due_at}
+          canArm={["not_started", "in_progress", "needs_revision"].includes(task.status)} />
         {task.status === "needs_revision" && task.feedback && <div className="mt-3"><Notice tone="warn">Reviewer: {task.feedback}</Notice></div>}
         {task.check && <AiCheckNote check={task.check} own />}
         {openForm && canSubmit && (
@@ -204,7 +208,8 @@ export function TaskRow({ task, tz, onChange }: { task: Assignment; tz: string; 
 }
 
 export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberLabel: string; onDone: () => void }) {
-  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members", estimate: "30" });
+  const { me } = useApp();
+  const [form, setForm] = useState({ title: "", description: "", category: "General Requirements", due: "", evidence: "any", assign: "all_members", estimate: "30", frequency: "", ends: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
@@ -214,10 +219,21 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
     setBusy(true);
     setError("");
     try {
-      await post(`/orgs/${orgId}/tasks`, {
-        title: form.title, description: form.description, category: form.category, evidence: form.evidence,
-        assign: form.assign, due_at: form.due ? new Date(form.due).toISOString() : null, estimate_minutes: Number(form.estimate),
-      });
+      const due_at = form.due ? new Date(form.due).toISOString() : null;
+      if (form.frequency) {
+        if (!due_at) { setError("A repeating task needs a first deadline."); setBusy(false); return; }
+        await post(`/orgs/${orgId}/task-templates`, {
+          title: form.title, description: form.description, category: form.category, evidence: form.evidence,
+          assign: form.assign, due_at, estimate_minutes: Number(form.estimate),
+          frequency: form.frequency, timezone: me.timezone || "America/New_York",
+          ends_at: form.ends ? new Date(form.ends).toISOString() : null,
+        });
+      } else {
+        await post(`/orgs/${orgId}/tasks`, {
+          title: form.title, description: form.description, category: form.category, evidence: form.evidence,
+          assign: form.assign, due_at, estimate_minutes: Number(form.estimate),
+        });
+      }
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the task.");
@@ -253,6 +269,18 @@ export function NewTask({ orgId, memberLabel, onDone }: { orgId: string; memberL
             <option value="all_members">Every {memberLabel.toLowerCase()}</option><option value="open">Open: anyone can claim it</option>
           </select>
         </label>
+        <label className="text-sm font-medium">Repeat
+          <select value={form.frequency} onChange={set("frequency")} className={field}>
+            <option value="">Doesn&apos;t repeat</option>
+            <option value="weekly">Every week</option>
+            <option value="daily">Every day</option>
+          </select>
+        </label>
+        {form.frequency && (
+          <label className="text-sm font-medium">Stop repeating after
+            <input type="datetime-local" value={form.ends} onChange={set("ends")} className={field} />
+          </label>
+        )}
         {error && <div className="sm:col-span-2"><Notice>{error}</Notice></div>}
         <div className="sm:col-span-2"><Button variant="primary" type="submit" busy={busy}>Create task</Button></div>
       </form>

@@ -256,6 +256,9 @@ export function NotificationBell() {
               </li>
             ))}
           </ul>
+          <div className="border-t border-line px-4 py-2.5">
+            <Link href="/app/notifications" onClick={() => setOpen(false)} className="text-xs font-semibold text-accent-2 hover:underline">See all notifications</Link>
+          </div>
         </div>
       )}
     </div>

@@ -114,18 +114,20 @@ api/
   app/seed.py      demo data (real names, made-up records); --reset reseeds
   tests/
 web/
-  src/app/         pages: sign-in, tasks, schedule, study, review, group, join
+  src/app/         pages: sign-in, tasks, schedule, study, review, group, join, notifications
   src/components/  app shell and UI primitives
   src/lib/         API client, Supabase client, formatting
 ```
 
-## Not built yet
+## Recently added
 
-- A notification center page (the API has `GET /notifications`; today they show as push and in-app banners).
-- Due-soon and overdue task reminders, and alarm mode for important deadlines.
-- Recurring tasks.
-- Cloud file storage. Uploads are saved on the API server's disk, which is fine for a demo and should move to Supabase Storage before real use.
-- Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
+- In-app notification center at `/app/notifications`, with unread counts.
+- Due-soon and overdue task reminders, plus BP due-soon reminders and lead alerts on every BP post.
+- Recurring tasks (daily or weekly templates; first occurrence is created immediately).
+- Opt-in deadline alarms: a server-checked math problem, always dismissible, repeating about every 15 minutes.
+- Private cloud uploads through Supabase Storage when `SUPABASE_SERVICE_ROLE_KEY` is set; otherwise files stay on local disk and are still served only through the authenticated API.
+
+Deployment config is ready (`render.yaml`, `DEPLOY.md`), but nothing is hosted until someone creates the Render and Vercel accounts.
 
 ## Ground rules
 

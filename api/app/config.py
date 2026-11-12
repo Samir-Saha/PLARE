@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     cron_secret: str = ""
     # Run the reminder loop inside the API process (checks once a minute).
     run_reminders: bool = True
+    # Supabase Storage (private bucket). Blank keeps uploads on local disk.
+    supabase_service_role_key: str = ""
+    supabase_storage_bucket: str = "plare-uploads"
 
 
 @lru_cache
